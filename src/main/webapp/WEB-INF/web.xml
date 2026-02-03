@@ -6,7 +6,7 @@
 
     <servlet>
         <servlet-name>RegisterServlet</servlet-name>
-        <servlet-class>com.example.controller.RegisterServlet</servlet-class>
+        <servlet-class>com.snapspace.controller.RegisterServlet</servlet-class>
     </servlet>
     <servlet-mapping>
         <servlet-name>RegisterServlet</servlet-name>
