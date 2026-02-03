@@ -6,7 +6,8 @@ import jakarta.persistence.*;
 @Table(name = "likes")
 public class Like {
 
-    @Id @GeneratedValue
+    @Id
+    @GeneratedValue
     private Long id;
 
     @ManyToOne
@@ -14,4 +15,29 @@ public class Like {
 
     @ManyToOne
     private ImagePost image;
+
+
+    public Long getId() {
+        return id;
+    }
+
+    public void setId(Long id) {
+        this.id = id;
+    }
+
+    public User getUser() {
+        return user;
+    }
+
+    public void setUser(User user) {
+        this.user = user;
+    }
+
+    public ImagePost getImage() {
+        return image;
+    }
+
+    public void setImage(ImagePost image) {
+        this.image = image;
+    }
 }
