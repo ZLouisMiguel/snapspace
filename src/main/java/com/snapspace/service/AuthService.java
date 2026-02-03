@@ -16,7 +16,16 @@ public class AuthService {
         return null;
     }
 
-    public void register(User user) {
+
+    public void register(String email, String username, String rawPassword) {
+
+        String hashedPassword = PasswordUtil.hash(rawPassword);
+
+        User user = new User();
+        user.setEmail(email);
+        user.setUsername(username);
+        user.setPasswordHash(hashedPassword);
+
         userDAO.save(user);
     }
 }
