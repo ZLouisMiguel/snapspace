@@ -6,6 +6,12 @@
 <body>
 <h2>Feed</h2>
 
+<c:if test="${not empty sessionScope.user}">
+    <p>
+        <a href="${pageContext.request.contextPath}/upload">Upload New Image</a>
+    </p>
+</c:if>
+
 <c:forEach var="post" items="${posts}">
     <div style="margin-bottom: 20px; border: 1px solid #ccc; padding: 10px; width: 300px;">
         <h4>${post.title}</h4>
