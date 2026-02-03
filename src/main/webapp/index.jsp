@@ -7,7 +7,7 @@
     <style>
         body {
             font-family: Arial, sans-serif;
-            background: #f6d365
+            background: #f6d365;
             margin: 0;
             height: 100vh;
             display: flex;
