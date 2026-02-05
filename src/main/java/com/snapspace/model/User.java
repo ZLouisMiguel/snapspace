@@ -2,9 +2,6 @@ package com.snapspace.model;
 
 import jakarta.persistence.*;
 
-import java.time.LocalDate;
-import java.time.Period;
-
 /**
  * This is the class that represents the User entity in the SnapSpace application
  *
