@@ -1,4 +1,4 @@
-package com.snapspace.config;
+package com.snapspace.util;
 
 import java.util.Properties;
 import org.hibernate.SessionFactory;

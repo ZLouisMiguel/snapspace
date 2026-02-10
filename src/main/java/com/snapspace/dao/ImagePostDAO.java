@@ -1,7 +1,7 @@
 package com.snapspace.dao;
 
 import com.snapspace.model.ImagePost;
-import com.snapspace.config.HibernateUtil;
+import com.snapspace.util.HibernateUtil;
 
 import org.hibernate.Session;
 import org.hibernate.SessionFactory;
