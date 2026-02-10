@@ -3,108 +3,69 @@ package com.snapspace.model;
 import jakarta.persistence.*;
 
 /**
- * This is the class that represents the User entity in the SnapSpace application
+ * Represents a User in the SnapSpace application.
+ * <p>
+ * This entity maps to the {@code users} table in the database.
+ * Each user has an email, username, and password hash.
+ * </p>
  *
- * @author Louis Miguel , GitHub -username: ZLouisMiguel
- *
+ * @author Louis Miguel
+ * @see <a href="https://github.com/ZLouisMiguel">GitHub</a>
  */
-
-
 @Entity
 @Table(name = "users")
 public class User {
-    /**
-     * Unique Identifier for each user
-     */
+
+    /** Unique identifier for each user */
     @Id
     @GeneratedValue
     private Long id;
 
-    /**
-     * Unique email address for each user
-     */
+    /** Unique email address for each user */
     @Column(unique = true, nullable = false)
     private String email;
 
-    /**
-     * Username chosen by the user for public display in the system.
-     */
+    /** Username chosen by the user */
     private String username;
 
-    /**
-     * Hashed password for the user saved in the db
-     */
+    /** Hashed password stored for the user */
     private String passwordHash;
 
-    /**
-     * Default constructor for the class
-     */
+    /** Default constructor */
     public User() {
     }
 
-
-    /**
-     * getId method public getter for user id
-     *
-     * @return user's Id
-     */
+    /** @return the user's ID */
     public Long getId() {
         return id;
     }
 
-    /**
-     * getEmail method public getter for user email
-     *
-     * @return user_email
-     */
-
+    /** @return the user's email */
     public String getEmail() {
         return email;
     }
 
-    /**
-     * getUsername method public getter for user's chosen username
-     *
-     * @return username
-     */
+    /** @return the user's username */
     public String getUsername() {
         return username;
     }
 
-    /**
-     * getPasswordHash method public getter for the stored user's password hash
-     *
-     * @return passwordHash
-     */
+    /** @return the hashed password */
     public String getPasswordHash() {
         return passwordHash;
     }
 
-    /**
-     * Sets the email address of the user.
-     *
-     * @param email the user's email address
-     */
+    /** @param email sets the user's email */
     public void setEmail(String email) {
         this.email = email;
     }
 
-
-    /**
-     * Sets the username of the user.
-     *
-     * @param username the user's username
-     */
+    /** @param username sets the user's username */
     public void setUsername(String username) {
         this.username = username;
     }
 
-
-    /**
-     * Sets the hashed password of the user.
-     *
-     * @param passwordHash the hashed password
-     */
+    /** @param passwordHash sets the hashed password */
     public void setPasswordHash(String passwordHash) {
         this.passwordHash = passwordHash;
     }

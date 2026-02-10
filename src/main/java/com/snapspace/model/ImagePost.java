@@ -3,91 +3,87 @@ package com.snapspace.model;
 import jakarta.persistence.*;
 
 /**
- * This is the class that represents the ImagePost entity in the SnapSpace application
+ * Represents an Image Post in SnapSpace.
+ * <p>
+ * This entity maps to the {@code image_posts} table.
+ * Each image post has a title, a path to the image, and an owner (user).
+ * </p>
  *
- * @author Louis Miguel , @see <a href="https://github.com/ZLouisMiguel #value">label</a>
- *
+ * @author Louis Miguel
+ * @see User
  */
-
 @Entity
 @Table(name = "image_posts")
 public class ImagePost {
+
     /**
-     * Unique identifier for each image post uploaded
+     * Unique identifier for each image post
      */
     @Id
     @GeneratedValue
     private Long id;
 
     /**
-     * Image Post title
+     * Title of the image post
      */
     private String title;
 
     /**
-     * Path to find the image_post
+     * Path to the uploaded image file
      */
     private String imagePath;
 
-
     /**
-     * Image Post owner
-     * {@link com.snapspace.model.User} User entity
+     * Owner of the image post
      */
     @ManyToOne
     private User owner;
 
-
     /**
-     * getId method public getter for the imagePost id
-     * @return id;
+     * @return the ID of the image post
      */
-
     public Long getId() {
         return id;
     }
 
-
     /**
-     * getTitle method returns the image post's title
-     * @return title
+     * @return the title of the image post
      */
     public String getTitle() {
         return title;
     }
 
     /**
-     * setTitle method public setter for the image post's title
-     * @param title image post's title
+     * @param title sets the title of the image post
      */
     public void setTitle(String title) {
         this.title = title;
     }
 
-
     /**
-     * getImagePath public getter for the image post's saved path
-     * @return imagePath
+     * @return the path to the image file
      */
-
     public String getImagePath() {
         return imagePath;
     }
 
-
     /**
-     * getImagePath public getter for the image post's saved path
-     * @param  imagePath path to image post;
+     * @param imagePath sets the path to the image file
      */
-
     public void setImagePath(String imagePath) {
         this.imagePath = imagePath;
     }
 
+    /**
+     * @return the owner (user) of the image post
+     */
     public User getOwner() {
         return owner;
     }
 
+    /**
+     * @param owner sets the owner (user) of the image post
+     */
     public void setOwner(User owner) {
         this.owner = owner;
     }
