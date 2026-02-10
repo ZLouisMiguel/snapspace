@@ -10,12 +10,28 @@ import jakarta.servlet.http.HttpServletResponse;
 
 import java.io.IOException;
 
+/**
+ * Servlet responsible for user registration.
+ *
+ * <p>
+ * Delegates registration logic to {@link AuthService},
+ * including password hashing and persistence.
+ * </p>
+ */
 @WebServlet(name = "RegisterServlet", urlPatterns = "/register")
 public class RegisterServlet extends HttpServlet {
 
+    /**
+     * Authentication service handling user registration.
+     */
     private final AuthService authService = new AuthService();
 
-    // Show registration page
+    /**
+     * Displays the registration form.
+     *
+     * @param request  HTTP request
+     * @param response HTTP response
+     */
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
@@ -24,7 +40,12 @@ public class RegisterServlet extends HttpServlet {
                 .forward(request, response);
     }
 
-    // Handle registration submit
+    /**
+     * Handles registration form submission.
+     *
+     * @param request  HTTP request containing registration data
+     * @param response HTTP response
+     */
     @Override
     protected void doPost(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
