@@ -4,8 +4,8 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
-    <groupId>com.example</groupId>
-    <artifactId>HelloWorld</artifactId>
+    <groupId>com.snapspace</groupId>
+    <artifactId>SnapSpace</artifactId>
     <version>1.0-SNAPSHOT</version>
     <name>HelloWorld</name>
     <packaging>war</packaging>
@@ -92,6 +92,7 @@
     </dependencies>
 
     <build>
+        <finalName>SnapSpace</finalName>
         <plugins>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
