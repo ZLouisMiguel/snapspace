@@ -40,4 +40,4 @@ build/
 /bin/
 
 ### custom environment variables ###
-**/config.properties
+src/main/resources/config.properties
