@@ -18,7 +18,7 @@
 - Understand how a layered MVC architecture works with Java
 ---
 
-## How it's structured
+## How it's structured 
 ```
 Controller (Servlets) → Service → DAO → Database
                            ↓
