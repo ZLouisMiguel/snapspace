@@ -8,6 +8,14 @@
 
 <h2>Create Account</h2>
 
+<c:if test="${param.error == 'email_taken'}">
+    <p style="color:red;">An account with that email already exists.</p>
+</c:if>
+
+<c:if test="${param.error == 'invalid_input'}">
+    <p style="color:red;">All fields are required.</p>
+</c:if>
+
 <form action="${pageContext.request.contextPath}/register" method="post">
     <label>Email</label>
     <input type="email" name="email" required />
