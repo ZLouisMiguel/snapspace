@@ -6,7 +6,8 @@ import jakarta.persistence.*;
  * Represents an Image Post in SnapSpace.
  * <p>
  * This entity maps to the {@code image_posts} table.
- * Each image post has a title, a path to the image, and an owner (user).
+ * Each image post has a title, a Cloudinary image URL,
+ * a Cloudinary public ID, and an owner.
  * </p>
  *
  * @author Louis Miguel
@@ -17,72 +18,96 @@ import jakarta.persistence.*;
 public class ImagePost {
 
     /**
-     * Unique identifier for each image post
+     * Unique identifier for each image post.
      */
     @Id
     @GeneratedValue
     private Long id;
 
     /**
-     * Title of the image post
+     * Display title of the image post, typically the original filename.
      */
     private String title;
 
     /**
-     * Path to the uploaded image file
+     * Full HTTPS URL returned by Cloudinary after upload.
+     * Used directly in img src tags — e.g. https://res.cloudinary.com/yourcloud/image/upload/...
      */
-    private String imagePath;
+    @Column(nullable = false)
+    private String imageUrl;
 
     /**
-     * Owner of the image post
+     * Cloudinary public ID returned after upload.
+     * Required to delete or apply transformations to the image later.
+     * e.g. snapspace/user_3/abc123
+     */
+    @Column(nullable = false)
+    private String cloudinaryPublicId;
+
+    /**
+     * The user who owns this image post.
      */
     @ManyToOne
     private User owner;
 
     /**
-     * @return the ID of the image post
+     * @return the unique ID of this post
      */
     public Long getId() {
         return id;
     }
 
     /**
-     * @return the title of the image post
+     * @return the display title of this post
      */
     public String getTitle() {
         return title;
     }
 
     /**
-     * @param title sets the title of the image post
+     * @param title sets the display title
      */
     public void setTitle(String title) {
         this.title = title;
     }
 
     /**
-     * @return the path to the image file
+     * @return the full Cloudinary HTTPS URL for this image
      */
-    public String getImagePath() {
-        return imagePath;
+    public String getImageUrl() {
+        return imageUrl;
     }
 
     /**
-     * @param imagePath sets the path to the image file
+     * @param imageUrl sets the Cloudinary image URL
      */
-    public void setImagePath(String imagePath) {
-        this.imagePath = imagePath;
+    public void setImageUrl(String imageUrl) {
+        this.imageUrl = imageUrl;
     }
 
     /**
-     * @return the owner (user) of the image post
+     * @return the Cloudinary public ID used for deletion and transformations
+     */
+    public String getCloudinaryPublicId() {
+        return cloudinaryPublicId;
+    }
+
+    /**
+     * @param cloudinaryPublicId sets the Cloudinary public ID
+     */
+    public void setCloudinaryPublicId(String cloudinaryPublicId) {
+        this.cloudinaryPublicId = cloudinaryPublicId;
+    }
+
+    /**
+     * @return the owner of this image post
      */
     public User getOwner() {
         return owner;
     }
 
     /**
-     * @param owner sets the owner (user) of the image post
+     * @param owner sets the owner of this image post
      */
     public void setOwner(User owner) {
         this.owner = owner;
