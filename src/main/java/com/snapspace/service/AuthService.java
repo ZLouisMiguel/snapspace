@@ -8,26 +8,44 @@ import com.snapspace.util.PasswordUtil;
  * Service layer responsible for authentication-related operations.
  *
  * <p>
- * This class handles user login and registration logic.
- * It acts as a bridge between controllers and the data access layer,
- * ensuring that authentication rules (such as password hashing and verification)
- * are enforced consistently.
+ * Handles user login and registration logic, acting as a bridge between
+ * controllers and the data access layer. Enforces rules like password
+ * hashing, duplicate email checks, and input validation.
  * </p>
  */
 public class AuthService {
 
     /**
-     * Data Access Object for performing user-related database operations.
+     * Represents the outcome of a registration attempt.
+     *
+     * <p>
+     * Using an enum instead of throwing exceptions or returning booleans
+     * gives the servlet clear, readable outcomes to act on —
+     * similar to returning a status object in a Node.js service.
+     * </p>
+     */
+    public enum RegisterResult {
+        /**
+         * Registration succeeded.
+         */
+        SUCCESS,
+        /**
+         * The email is already taken by another account.
+         */
+        EMAIL_TAKEN,
+        /**
+         * One or more required fields are blank.
+         */
+        INVALID_INPUT
+    }
+
+    /**
+     * Data Access Object for user database operations.
      */
     private final UserDAO userDAO = new UserDAO();
 
     /**
      * Attempts to authenticate a user using their email and password.
-     *
-     * <p>
-     * The method retrieves a user by email and verifies the provided
-     * plain-text password against the stored hashed password.
-     * </p>
      *
      * @param email    the user's email address
      * @param password the plain-text password provided by the user
@@ -45,18 +63,30 @@ public class AuthService {
     }
 
     /**
-     * Registers a new user in the system.
+     * Attempts to register a new user.
      *
      * <p>
-     * This method hashes the provided password using BCrypt,
-     * creates a new {@link User} entity, and persists it to the database.
+     * Validates input, checks for duplicate email, hashes the password,
+     * and persists the new user. Returns a {@link RegisterResult} so the
+     * servlet can respond appropriately without catching raw exceptions.
      * </p>
      *
      * @param email       the user's email address
      * @param username    the chosen username
      * @param rawPassword the plain-text password to be hashed and stored
+     * @return a {@link RegisterResult} indicating success or the reason for failure
      */
-    public void register(String email, String username, String rawPassword) {
+    public RegisterResult register(String email, String username, String rawPassword) {
+
+        if (email == null || email.isBlank() ||
+                username == null || username.isBlank() ||
+                rawPassword == null || rawPassword.isBlank()) {
+            return RegisterResult.INVALID_INPUT;
+        }
+
+        if (userDAO.findByEmail(email) != null) {
+            return RegisterResult.EMAIL_TAKEN;
+        }
 
         String hashedPassword = PasswordUtil.hash(rawPassword);
 
@@ -66,5 +96,7 @@ public class AuthService {
         user.setPasswordHash(hashedPassword);
 
         userDAO.save(user);
+
+        return RegisterResult.SUCCESS;
     }
 }

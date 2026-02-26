@@ -1,6 +1,7 @@
 package com.snapspace.controller;
 
 import com.snapspace.service.AuthService;
+import com.snapspace.service.AuthService.RegisterResult;
 
 import jakarta.servlet.ServletException;
 import jakarta.servlet.annotation.WebServlet;
@@ -14,15 +15,16 @@ import java.io.IOException;
  * Servlet responsible for user registration.
  *
  * <p>
- * Delegates registration logic to {@link AuthService},
- * including password hashing and persistence.
+ * Delegates all registration logic to {@link AuthService} and acts
+ * on the result — redirecting to login on success or back to the
+ * registration form with an error code on failure.
  * </p>
  */
 @WebServlet(name = "RegisterServlet", urlPatterns = "/register")
 public class RegisterServlet extends HttpServlet {
 
     /**
-     * Authentication service handling user registration.
+     * Authentication service handling registration logic and validation.
      */
     private final AuthService authService = new AuthService();
 
@@ -33,29 +35,46 @@ public class RegisterServlet extends HttpServlet {
      * @param response HTTP response
      */
     @Override
-    protected void doGet(HttpServletRequest request, HttpServletResponse response)
-            throws ServletException, IOException {
+    protected void doGet(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
 
-        request.getRequestDispatcher("/WEB-INF/register.jsp")
-                .forward(request, response);
+        request.getRequestDispatcher("/WEB-INF/register.jsp").forward(request, response);
     }
 
     /**
      * Handles registration form submission.
      *
-     * @param request  HTTP request containing registration data
+     * <p>
+     * Passes credentials to {@link AuthService#register} and redirects
+     * based on the result:
+     * <ul>
+     *     <li>SUCCESS → redirect to login</li>
+     *     <li>EMAIL_TAKEN → back to register with error=email_taken</li>
+     *     <li>INVALID_INPUT → back to register with error=invalid_input</li>
+     * </ul>
+     * </p>
+     *
+     * @param request  HTTP request containing registration form data
      * @param response HTTP response
      */
     @Override
-    protected void doPost(HttpServletRequest request, HttpServletResponse response)
-            throws ServletException, IOException {
+    protected void doPost(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
 
         String email = request.getParameter("email");
         String username = request.getParameter("username");
         String password = request.getParameter("password");
 
-        authService.register(email, username, password);
+        RegisterResult result = authService.register(email, username, password);
 
-        response.sendRedirect(request.getContextPath() + "/login");
+        switch (result) {
+            case SUCCESS:
+                response.sendRedirect(request.getContextPath() + "/login");
+                break;
+            case EMAIL_TAKEN:
+                response.sendRedirect(request.getContextPath() + "/register?error=email_taken");
+                break;
+            case INVALID_INPUT:
+                response.sendRedirect(request.getContextPath() + "/register?error=invalid_input");
+                break;
+        }
     }
 }
