@@ -1,8 +1,7 @@
 package com.snapspace.controller;
 
-import com.snapspace.dao.ImagePostDAO;
-import com.snapspace.model.ImagePost;
 import com.snapspace.model.User;
+import com.snapspace.service.ImageService;
 
 import jakarta.servlet.ServletException;
 import jakarta.servlet.annotation.MultipartConfig;
@@ -13,7 +12,6 @@ import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
 import jakarta.servlet.http.Part;
 
-import java.io.File;
 import java.io.IOException;
 import java.nio.file.Paths;
 
@@ -21,31 +19,28 @@ import java.nio.file.Paths;
  * Servlet responsible for handling image uploads in the SnapSpace application.
  *
  * <p>
- * This servlet:
- * <ul>
- *     <li>Displays the image upload form (GET)</li>
- *     <li>Processes multipart image uploads (POST)</li>
- *     <li>Saves uploaded images to the server filesystem</li>
- *     <li>Persists {@link ImagePost} metadata to the database</li>
- * </ul>
+ * This servlet only handles HTTP concerns — reading the request and redirecting.
+ * All upload logic (Cloudinary, database) is delegated to {@link ImageService}.
+ * </p>
+ *
+ * <p>
+ * Node.js equivalent: this is your Express route handler. It reads req, calls
+ * a service, then sends a redirect. Nothing else.
  * </p>
  */
 @WebServlet("/upload")
-@MultipartConfig(fileSizeThreshold = 1024 * 1024,   // 1MB
-        maxFileSize = 5 * 1024 * 1024,     // 5MB
-        maxRequestSize = 10 * 1024 * 1024  // 10MB
+@MultipartConfig(fileSizeThreshold = 1024 * 1024,
+        maxFileSize = 5 * 1024 * 1024,
+        maxRequestSize = 10 * 1024 * 1024
 )
 public class UploadImageServlet extends HttpServlet {
 
     /**
-     * Base directory name where uploaded images are stored.
+     * Service handling all image upload business logic.
+     * This replaces the direct DAO reference — the servlet no longer
+     * knows about the database or Cloudinary.
      */
-    private static final String UPLOAD_DIR = "uploads";
-
-    /**
-     * DAO used to persist {@link ImagePost} entities.
-     */
-    private final ImagePostDAO imageDAO = new ImagePostDAO();
+    private final ImageService imageService = new ImageService();
 
     /**
      * Displays the image upload page.
@@ -55,24 +50,25 @@ public class UploadImageServlet extends HttpServlet {
      */
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
-
         request.getRequestDispatcher("/WEB-INF/upload.jsp").forward(request, response);
     }
 
     /**
-     * Handles image upload submission.
+     * Handles image upload form submission.
      *
      * <p>
      * This method:
      * <ol>
-     *     <li>Ensures the user is authenticated</li>
-     *     <li>Extracts the uploaded image</li>
-     *     <li>Stores the image in a user-specific directory</li>
-     *     <li>Creates and saves an {@link ImagePost} entity</li>
+     *     <li>Verifies the user is authenticated via session</li>
+     *     <li>Extracts the file and original filename from the multipart request</li>
+     *     <li>Passes the raw stream, title, and user to {@link ImageService#upload}</li>
+     *     <li>Redirects to the feed on success</li>
      * </ol>
+     * No file system access, no DAO, no Cloudinary imports — all of that lives
+     * in the service layer.
      * </p>
      *
-     * @param request  HTTP request containing multipart data
+     * @param request  HTTP multipart request containing the uploaded image
      * @param response HTTP response
      */
     @Override
@@ -89,23 +85,7 @@ public class UploadImageServlet extends HttpServlet {
         Part filePart = request.getPart("image");
         String fileName = Paths.get(filePart.getSubmittedFileName()).getFileName().toString();
 
-        String appPath = request.getServletContext().getRealPath("");
-        String userDirPath = appPath + File.separator + UPLOAD_DIR + File.separator + "user_" + user.getId();
-
-        File userDir = new File(userDirPath);
-        if (!userDir.exists()) {
-            userDir.mkdirs();
-        }
-
-        String fullPath = userDirPath + File.separator + fileName;
-        filePart.write(fullPath);
-
-        ImagePost imagePost = new ImagePost();
-        imagePost.setTitle(fileName);
-        imagePost.setImagePath("user_" + user.getId() + "/" + fileName);
-        imagePost.setOwner(user);
-
-        imageDAO.save(imagePost);
+        imageService.upload(filePart.getInputStream(), fileName, user);
 
         response.sendRedirect(request.getContextPath() + "/feed");
     }
