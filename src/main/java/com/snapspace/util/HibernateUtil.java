@@ -9,6 +9,9 @@ import org.hibernate.boot.registry.StandardServiceRegistryBuilder;
 
 import com.snapspace.model.User;
 import com.snapspace.model.ImagePost;
+import com.snapspace.model.Board;
+import com.snapspace.model.Comment;
+import com.snapspace.model.Like;
 
 /**
  * Utility class for managing the Hibernate {@link SessionFactory}.
@@ -43,9 +46,9 @@ public class HibernateUtil {
             // Set Hibernate properties
             Properties props = new Properties();
             props.put(Environment.DRIVER, "org.postgresql.Driver");
-            props.put(Environment.URL, "jdbc:postgresql://localhost:5432/snapspace");
-            props.put(Environment.USER, "postgres");
-            props.put(Environment.PASS, "1234");
+            props.put(Environment.URL, PropertiesUtil.get("db.url"));
+            props.put(Environment.USER,  PropertiesUtil.get("db.user"));
+            props.put(Environment.PASS,  PropertiesUtil.get("db.password"));
             props.put(Environment.DIALECT, "org.hibernate.dialect.PostgreSQLDialect");
             props.put(Environment.HBM2DDL_AUTO, "update"); // Auto-create/update tables
             props.put(Environment.SHOW_SQL, true);         // Show SQL in console
@@ -55,6 +58,9 @@ public class HibernateUtil {
             // Register annotated entity classes
             cfg.addAnnotatedClass(User.class);
             cfg.addAnnotatedClass(ImagePost.class);
+            cfg.addAnnotatedClass(Board.class);
+            cfg.addAnnotatedClass(Comment.class);
+            cfg.addAnnotatedClass(Like.class);
 
             // Build the ServiceRegistry and SessionFactory
             ServiceRegistry sr = new StandardServiceRegistryBuilder()
