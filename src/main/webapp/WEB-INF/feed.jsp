@@ -35,18 +35,18 @@
         <c:otherwise>
             <div class="feed-grid">
                 <c:forEach var="post" items="${posts}">
-                    <div class="feed-card">
+                    <a href="${pageContext.request.contextPath}/post?id=${post.id}" class="feed-card">
                         <div class="feed-card-img">
                             <img src="${post.imageUrl}" alt="${post.title}" />
                             <div class="feed-card-overlay">
-                                <button class="feed-save-btn">Save</button>
+                                <span class="feed-save-btn">View</span>
                             </div>
                         </div>
                         <div class="feed-card-info">
                             <span class="feed-card-title">${post.title}</span>
                             <span class="feed-card-user">@${post.owner.username}</span>
                         </div>
-                    </div>
+                    </a>
                 </c:forEach>
             </div>
         </c:otherwise>
