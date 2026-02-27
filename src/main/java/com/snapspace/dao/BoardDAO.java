@@ -41,34 +41,54 @@ public class BoardDAO {
     /**
      * Retrieves a single board by its ID.
      *
+     * <p>
+     * Uses left join fetch to eagerly load the posts collection
+     * while the session is still open, preventing LazyInitializationException
+     * when the JSP tries to access board.posts after the session closes.
+     * Node.js equivalent: {@code Board.findById(id).populate('posts')}
+     * </p>
+     *
      * @param id the board ID
      * @return the matching {@link Board} or null
      */
     public Board findById(Long id) {
         try (Session s = sf.openSession()) {
-            return s.get(Board.class, id);
+            return s.createQuery(
+                            "select b from Board b left join fetch b.posts where b.id = :id",
+                            Board.class
+                    )
+                    .setParameter("id", id)
+                    .uniqueResult();
         }
     }
 
     /**
-     * Retrieves all boards belonging to a given user.
+     * Retrieves all boards belonging to a given user, with posts eagerly loaded.
      *
      * <p>
-     * Node.js equivalent: {@code Board.find({ owner: userId })}
+     * Uses left join fetch so the posts collection is initialized
+     * inside this session — safe to access in the JSP later.
+     * Node.js equivalent: {@code Board.find({ owner: userId }).populate('posts')}
      * </p>
      *
      * @param owner the user whose boards to fetch
-     * @return list of boards owned by the user
+     * @return list of boards owned by the user, Sparks first
      */
     public List<Board> findByOwner(User owner) {
         try (Session s = sf.openSession()) {
-            return s.createQuery("from Board where owner = :owner order by defaultBoard desc, id asc", Board.class).setParameter("owner", owner).list();
+            return s.createQuery(
+                            "select distinct b from Board b left join fetch b.posts " +
+                                    "where b.owner = :owner order by b.defaultBoard desc, b.id asc",
+                            Board.class
+                    )
+                    .setParameter("owner", owner)
+                    .list();
         }
     }
 
     /**
      * Finds a specific board by owner and name.
-     * Used to locate the Sparks board by name.
+     * Used to locate the default Sparks board by name.
      *
      * @param owner the board owner
      * @param name  the board name
@@ -76,7 +96,13 @@ public class BoardDAO {
      */
     public Board findByOwnerAndName(User owner, String name) {
         try (Session s = sf.openSession()) {
-            return s.createQuery("from Board where owner = :owner and name = :name", Board.class).setParameter("owner", owner).setParameter("name", name).uniqueResult();
+            return s.createQuery(
+                            "from Board where owner = :owner and name = :name",
+                            Board.class
+                    )
+                    .setParameter("owner", owner)
+                    .setParameter("name", name)
+                    .uniqueResult();
         }
     }
 
@@ -89,7 +115,14 @@ public class BoardDAO {
      */
     public boolean containsPost(Board board, ImagePost post) {
         try (Session s = sf.openSession()) {
-            Long count = s.createQuery("select count(p) from Board b join b.posts p where b.id = :boardId and p.id = :postId", Long.class).setParameter("boardId", board.getId()).setParameter("postId", post.getId()).uniqueResult();
+            Long count = s.createQuery(
+                            "select count(p) from Board b join b.posts p " +
+                                    "where b.id = :boardId and p.id = :postId",
+                            Long.class
+                    )
+                    .setParameter("boardId", board.getId())
+                    .setParameter("postId", post.getId())
+                    .uniqueResult();
             return count != null && count > 0;
         }
     }
@@ -98,7 +131,7 @@ public class BoardDAO {
      * Adds an image post to a board.
      *
      * <p>
-     * Loads both the board and post in the same session so Hibernate
+     * Loads both board and post in the same session so Hibernate
      * can manage the join table correctly.
      * </p>
      *
@@ -108,7 +141,7 @@ public class BoardDAO {
     public void addPost(Long boardId, Long postId) {
         try (Session s = sf.openSession()) {
             s.beginTransaction();
-            Board board = s.get(Board.class, boardId);
+            Board board   = s.get(Board.class, boardId);
             ImagePost post = s.get(ImagePost.class, postId);
             if (board != null && post != null && !board.getPosts().contains(post)) {
                 board.getPosts().add(post);
@@ -127,7 +160,7 @@ public class BoardDAO {
     public void removePost(Long boardId, Long postId) {
         try (Session s = sf.openSession()) {
             s.beginTransaction();
-            Board board = s.get(Board.class, boardId);
+            Board board    = s.get(Board.class, boardId);
             ImagePost post = s.get(ImagePost.class, postId);
             if (board != null && post != null) {
                 board.getPosts().removeIf(p -> p.getId().equals(post.getId()));
