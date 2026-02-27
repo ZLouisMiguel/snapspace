@@ -1,0 +1,188 @@
+/* =====================
+   FONTS
+===================== */
+@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&display=swap');
+
+/* =====================
+   DESIGN TOKENS
+===================== */
+:root {
+    --slate:          #2b323f;
+    --ember:          #ec5e27;
+    --frost:          #f2f5ff;
+    --ash:            #8a919e;
+    --chalk:          #e8eaf0;
+    --white:          #ffffff;
+
+    --font-display:   'Bebas Neue', sans-serif;
+    --font-body:      'DM Sans', sans-serif;
+
+    --transition:     all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    --shadow-sm:      0 2px 8px rgba(43, 50, 63, 0.08);
+    --shadow-md:      0 6px 20px rgba(43, 50, 63, 0.12);
+    --shadow-lg:      0 16px 48px rgba(43, 50, 63, 0.16);
+}
+
+/* =====================
+   RESET
+===================== */
+*, *::before, *::after {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+html {
+    scroll-behavior: smooth;
+}
+
+body {
+    font-family: var(--font-body);
+    background: var(--frost);
+    color: var(--slate);
+    min-height: 100vh;
+    overflow-x: hidden;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+}
+
+a {
+    text-decoration: none;
+    color: inherit;
+    transition: var(--transition);
+}
+
+img {
+    display: block;
+    max-width: 100%;
+}
+
+/* =====================
+   NAV
+===================== */
+nav {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 22px 48px;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 100;
+    background: rgba(242, 245, 255, 0.88);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    border-bottom: 1px solid var(--chalk);
+}
+
+.nav-logo {
+    font-family: var(--font-display);
+    font-size: 26px;
+    letter-spacing: 3px;
+    color: var(--slate);
+}
+
+.nav-logo span {
+    color: var(--ember);
+}
+
+.nav-links {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.nav-links a {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--ash);
+    padding: 8px 16px;
+    border-radius: 6px;
+    letter-spacing: 0.2px;
+    transition: var(--transition);
+}
+
+.nav-links a:hover {
+    color: var(--slate);
+    background: var(--chalk);
+}
+
+.nav-links .nav-cta {
+    background: var(--slate);
+    color: var(--frost);
+    border-radius: 6px;
+    margin-left: 8px;
+}
+
+.nav-links .nav-cta:hover {
+    background: var(--ember);
+    color: var(--white);
+}
+
+/* =====================
+   SHARED BUTTONS
+===================== */
+.btn-main {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    background: var(--ember);
+    color: var(--white);
+    padding: 13px 28px;
+    font-size: 13px;
+    font-weight: 500;
+    letter-spacing: 0.4px;
+    border-radius: 4px;
+    border: none;
+    cursor: pointer;
+    transition: var(--transition);
+}
+
+.btn-main:hover {
+    background: var(--slate);
+    color: var(--white);
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
+}
+
+.btn-ghost {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--slate);
+    font-size: 13px;
+    font-weight: 500;
+    border-bottom: 1.5px solid var(--slate);
+    padding-bottom: 2px;
+    background: none;
+    border-top: none;
+    border-left: none;
+    border-right: none;
+    cursor: pointer;
+    transition: var(--transition);
+}
+
+.btn-ghost:hover {
+    color: var(--ember);
+    border-color: var(--ember);
+}
+
+/* =====================
+   SHARED ANIMATIONS
+===================== */
+@keyframes fadeUp {
+    from {
+        opacity: 0;
+        transform: translateY(28px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+}
