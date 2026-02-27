@@ -8,6 +8,7 @@ import com.snapspace.model.ImagePost;
 import com.snapspace.model.Like;
 import com.snapspace.model.User;
 
+import com.snapspace.service.BoardService;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.annotation.WebServlet;
 import jakarta.servlet.http.HttpServlet;
@@ -41,6 +42,7 @@ public class PostServlet extends HttpServlet {
     private final ImagePostDAO postDAO = new ImagePostDAO();
     private final CommentDAO commentDAO = new CommentDAO();
     private final LikeDAO likeDAO = new LikeDAO();
+    private final BoardService boardService = new BoardService();
 
     /**
      * Handles GET requests — loads and displays a single post.
@@ -89,6 +91,10 @@ public class PostServlet extends HttpServlet {
         request.setAttribute("likeCount", likeCount);
         request.setAttribute("hasLiked", hasLiked);
         request.setAttribute("more", more);
+
+        if (user != null) {
+            request.setAttribute("userBoards", boardService.getBoardsForUser(user));
+        }
 
         request.getRequestDispatcher("/WEB-INF/post.jsp").forward(request, response);
     }
