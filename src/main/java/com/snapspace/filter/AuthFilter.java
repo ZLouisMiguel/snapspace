@@ -37,7 +37,7 @@ import java.io.IOException;
  * </ul>
  * </p>
  */
-@WebFilter(filterName = "AuthFilter", urlPatterns = {"/feed", "/upload", "/images/*"})
+@WebFilter(filterName = "AuthFilter", urlPatterns = {"/feed", "/upload", "/images/*", "/boards"})
 public class AuthFilter implements Filter {
 
     /**
