@@ -1,0 +1,375 @@
+.boards-page {
+    padding-top: 72px;
+    min-height: 100vh;
+    background: var(--frost);
+    padding-bottom: 64px;
+}
+
+.boards-header {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    padding: 52px 52px 36px 52px;
+    border-bottom: 1px solid var(--chalk);
+}
+
+.boards-header-left {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.boards-tag {
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 2.5px;
+    text-transform: uppercase;
+    color: var(--ember);
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.boards-tag::before {
+    content: '';
+    display: block;
+    width: 24px;
+    height: 2px;
+    background: var(--ember);
+}
+
+.boards-headline {
+    font-family: var(--font-display);
+    font-size: clamp(48px, 6vw, 80px);
+    line-height: 0.9;
+    letter-spacing: 1px;
+    color: var(--slate);
+    margin: 0;
+}
+
+.create-board-form {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.35s cubic-bezier(0.4, 0, 0.2, 1),
+                padding 0.35s ease;
+    padding: 0 52px;
+}
+
+.create-board-form.visible {
+    max-height: 120px;
+    padding: 28px 52px;
+    border-bottom: 1px solid var(--chalk);
+}
+
+.create-board-inner {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.create-board-input {
+    flex: 1;
+    padding: 12px 16px;
+    font-size: 14px;
+    font-family: var(--font-body);
+    background: var(--white);
+    border: 1.5px solid var(--chalk);
+    border-radius: 4px;
+    color: var(--slate);
+    outline: none;
+    transition: border-color 0.2s;
+    max-width: 400px;
+}
+
+.create-board-input:focus {
+    border-color: var(--slate);
+}
+
+.create-board-input::placeholder {
+    color: var(--ash);
+    font-weight: 300;
+}
+
+.boards-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 24px;
+    padding: 40px 52px;
+}
+
+.board-card {
+    border-radius: 12px;
+    overflow: hidden;
+    background: var(--white);
+    box-shadow: var(--shadow-sm);
+    transition: box-shadow 0.25s ease, transform 0.25s ease;
+}
+
+.board-card:hover {
+    box-shadow: var(--shadow-md);
+    transform: translateY(-3px);
+}
+
+.board-card-preview {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: 1fr 1fr;
+    aspect-ratio: 4/3;
+    overflow: hidden;
+    text-decoration: none;
+    background: var(--chalk);
+}
+
+.board-preview-img {
+    overflow: hidden;
+}
+
+.board-preview-img img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: transform 0.4s ease;
+}
+
+.board-card:hover .board-preview-img img {
+    transform: scale(1.05);
+}
+
+.board-card-preview .board-preview-img:first-child:last-child {
+    grid-column: span 2;
+    grid-row: span 2;
+}
+
+.board-preview-empty {
+    grid-column: span 2;
+    grid-row: span 2;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    color: var(--ash);
+    font-weight: 300;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+}
+
+.board-card-info {
+    padding: 14px 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+}
+
+.board-card-meta {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+}
+
+.board-card-name {
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--slate);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.board-default-badge {
+    font-size: 9px;
+    font-weight: 600;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    background: rgba(236, 94, 39, 0.1);
+    color: var(--ember);
+    padding: 2px 6px;
+    border-radius: 3px;
+}
+
+.board-card-count {
+    font-size: 11px;
+    color: var(--ash);
+    font-weight: 300;
+}
+
+.board-delete-btn {
+    font-size: 11px;
+    color: var(--ash);
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-family: var(--font-body);
+    padding: 4px 8px;
+    border-radius: 4px;
+    transition: color 0.2s, background 0.2s;
+}
+
+.board-delete-btn:hover {
+    color: var(--ember);
+    background: rgba(236, 94, 39, 0.08);
+}
+
+.board-picker-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(43, 50, 63, 0.5);
+    backdrop-filter: blur(4px);
+    z-index: 200;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.25s ease;
+}
+
+.board-picker-overlay.open {
+    opacity: 1;
+    pointer-events: all;
+}
+
+.board-picker {
+    background: var(--white);
+    border-radius: 12px;
+    width: 100%;
+    max-width: 380px;
+    box-shadow: var(--shadow-lg);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    transform: translateY(12px);
+    transition: transform 0.25s ease;
+}
+
+.board-picker-overlay.open .board-picker {
+    transform: translateY(0);
+}
+
+.board-picker-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 20px 24px 16px 24px;
+    border-bottom: 1px solid var(--chalk);
+}
+
+.board-picker-title {
+    font-family: var(--font-display);
+    font-size: 24px;
+    letter-spacing: 1px;
+    color: var(--slate);
+    margin: 0;
+}
+
+.board-picker-list {
+    display: flex;
+    flex-direction: column;
+    max-height: 320px;
+    overflow-y: auto;
+    padding: 8px 0;
+}
+
+.board-picker-item {
+    display: block;
+}
+
+.board-picker-btn {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 24px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-family: var(--font-body);
+    transition: background 0.15s;
+    text-align: left;
+}
+
+.board-picker-btn:hover {
+    background: var(--frost);
+}
+
+.board-picker-name {
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--slate);
+}
+
+.board-picker-count {
+    font-size: 12px;
+    color: var(--ash);
+    font-weight: 300;
+}
+
+.board-picker-footer {
+    padding: 14px 24px;
+    border-top: 1px solid var(--chalk);
+}
+
+.board-picker-manage {
+    font-size: 13px;
+    color: var(--ash);
+    font-weight: 400;
+    transition: color 0.2s;
+}
+
+.board-picker-manage:hover {
+    color: var(--ember);
+}
+
+.post-actions {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+}
+
+.save-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--chalk);
+    border: none;
+    border-radius: 40px;
+    padding: 10px 20px;
+    cursor: pointer;
+    font-family: var(--font-body);
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--slate);
+    letter-spacing: 0.3px;
+    transition: background 0.2s, color 0.2s;
+}
+
+.save-btn:hover {
+    background: var(--ember);
+    color: var(--white);
+}
+
+@media (max-width: 768px) {
+    .boards-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 20px;
+        padding: 40px 24px 24px 24px;
+    }
+
+    .boards-grid {
+        grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+        padding: 28px 24px;
+    }
+
+    .create-board-form.visible {
+        padding: 20px 24px;
+    }
+
+    .create-board-inner {
+        flex-wrap: wrap;
+    }
+
+    .create-board-input {
+        max-width: 100%;
+    }
+}
