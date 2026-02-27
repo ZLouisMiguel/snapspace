@@ -14,6 +14,7 @@
     <div class="nav-links">
         <a href="${pageContext.request.contextPath}/feed">← Feed</a>
         <c:if test="${not empty sessionScope.user}">
+            <a href="${pageContext.request.contextPath}/boards">My Boards</a>
             <a href="${pageContext.request.contextPath}/upload" class="nav-cta">+ Upload</a>
         </c:if>
     </div>
@@ -21,15 +22,12 @@
 
 <main class="post-page">
 
-    <!-- ===================== MAIN VIEW ===================== -->
     <div class="post-main" id="postMain">
 
-        <!-- Image panel -->
         <div class="post-image-panel">
             <img src="${post.imageUrl}" alt="${post.title}" class="post-image" />
         </div>
 
-        <!-- Info panel -->
         <div class="post-info-panel" id="infoPanel">
 
             <div class="post-meta">
@@ -38,8 +36,8 @@
                 <p class="post-owner">@${post.owner.username}</p>
             </div>
 
-            <!-- Like button -->
-            <div class="post-likes">
+            <div class="post-actions">
+                <!-- Like button -->
                 <form action="${pageContext.request.contextPath}/post?id=${post.id}" method="post">
                     <input type="hidden" name="action" value="like" />
                     <button type="submit" class="like-btn ${hasLiked ? 'liked' : ''}">
@@ -47,9 +45,15 @@
                         <span class="like-count">${likeCount}</span>
                     </button>
                 </form>
+
+                <!-- Save to board button — only for logged-in users -->
+                <c:if test="${not empty sessionScope.user}">
+                    <button class="save-btn" onclick="toggleBoardPicker()">
+                        ✦ Save
+                    </button>
+                </c:if>
             </div>
 
-            <!-- Comments drawer tab -->
             <button class="comments-tab" id="commentsTab" onclick="toggleDrawer()">
                 <span>💬 Comments</span>
                 <span class="comments-count">${fn:length(comments)}</span>
@@ -58,9 +62,8 @@
 
         </div>
 
-        <!-- Comments drawer — slides in over info panel -->
+        <!-- Comments drawer -->
         <div class="comments-drawer" id="commentsDrawer">
-
             <div class="drawer-header">
                 <h3 class="drawer-title">Comments</h3>
                 <button class="drawer-close" onclick="toggleDrawer()">✕</button>
@@ -69,9 +72,7 @@
             <div class="comments-list" id="commentsList">
                 <c:choose>
                     <c:when test="${empty comments}">
-                        <div class="comments-empty">
-                            No comments yet. Be the first.
-                        </div>
+                        <div class="comments-empty">No comments yet. Be the first.</div>
                     </c:when>
                     <c:otherwise>
                         <c:forEach var="comment" items="${comments}">
@@ -84,20 +85,13 @@
                 </c:choose>
             </div>
 
-            <!-- Comment form — only shown when logged in -->
             <c:if test="${not empty sessionScope.user}">
                 <form class="comment-form"
                       action="${pageContext.request.contextPath}/post?id=${post.id}"
                       method="post">
                     <input type="hidden" name="action" value="comment" />
                     <div class="comment-input-row">
-                        <input
-                            type="text"
-                            name="text"
-                            placeholder="Add a comment..."
-                            required
-                            autocomplete="off"
-                        />
+                        <input type="text" name="text" placeholder="Add a comment..." required autocomplete="off" />
                         <button type="submit" class="comment-submit">↑</button>
                     </div>
                 </form>
@@ -108,12 +102,42 @@
                     <a href="${pageContext.request.contextPath}/login">Sign in to comment</a>
                 </div>
             </c:if>
-
         </div>
 
     </div>
 
-    <!-- ===================== MORE FROM COMMUNITY ===================== -->
+    <!-- Board picker overlay -->
+    <c:if test="${not empty sessionScope.user}">
+        <div class="board-picker-overlay" id="boardPickerOverlay" onclick="closeBoardPicker(event)">
+            <div class="board-picker">
+                <div class="board-picker-header">
+                    <h3 class="board-picker-title">Save to board</h3>
+                    <button class="drawer-close" onclick="toggleBoardPicker()">✕</button>
+                </div>
+                <div class="board-picker-list">
+                    <c:forEach var="board" items="${userBoards}">
+                        <form action="${pageContext.request.contextPath}/boards" method="post"
+                              class="board-picker-item">
+                            <input type="hidden" name="action"  value="save" />
+                            <input type="hidden" name="boardId" value="${board.id}" />
+                            <input type="hidden" name="postId"  value="${post.id}" />
+                            <button type="submit" class="board-picker-btn">
+                                <span class="board-picker-name">${board.name}</span>
+                                <span class="board-picker-count">${fn:length(board.posts)} shots</span>
+                            </button>
+                        </form>
+                    </c:forEach>
+                </div>
+                <div class="board-picker-footer">
+                    <a href="${pageContext.request.contextPath}/boards" class="board-picker-manage">
+                        Manage boards →
+                    </a>
+                </div>
+            </div>
+        </div>
+    </c:if>
+
+    <!-- More from community -->
     <c:if test="${not empty more}">
         <section class="post-more">
             <div class="post-more-header">
@@ -121,8 +145,7 @@
             </div>
             <div class="post-more-grid">
                 <c:forEach var="related" items="${more}">
-                    <a href="${pageContext.request.contextPath}/post?id=${related.id}"
-                       class="post-more-card">
+                    <a href="${pageContext.request.contextPath}/post?id=${related.id}" class="post-more-card">
                         <div class="post-more-img">
                             <img src="${related.imageUrl}" alt="${related.title}" />
                         </div>
@@ -144,7 +167,6 @@
         const arrow  = document.getElementById('drawerArrow');
         const info   = document.getElementById('infoPanel');
         const isOpen = drawer.classList.contains('open');
-
         if (isOpen) {
             drawer.classList.remove('open');
             info.classList.remove('hidden');
@@ -153,9 +175,19 @@
             drawer.classList.add('open');
             info.classList.add('hidden');
             arrow.textContent = '←';
-            // Scroll comments to bottom so latest is visible
             const list = document.getElementById('commentsList');
             list.scrollTop = list.scrollHeight;
+        }
+    }
+
+    function toggleBoardPicker() {
+        const overlay = document.getElementById('boardPickerOverlay');
+        if (overlay) overlay.classList.toggle('open');
+    }
+
+    function closeBoardPicker(e) {
+        if (e.target === document.getElementById('boardPickerOverlay')) {
+            toggleBoardPicker();
         }
     }
 </script>
