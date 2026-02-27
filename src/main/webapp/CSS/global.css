@@ -1,11 +1,5 @@
-/* =====================
-   FONTS
-===================== */
 @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&display=swap');
 
-/* =====================
-   DESIGN TOKENS
-===================== */
 :root {
     --slate:          #2b323f;
     --ember:          #ec5e27;
@@ -23,9 +17,6 @@
     --shadow-lg:      0 16px 48px rgba(43, 50, 63, 0.16);
 }
 
-/* =====================
-   RESET
-===================== */
 *, *::before, *::after {
     margin: 0;
     padding: 0;
@@ -57,14 +48,11 @@ img {
     max-width: 100%;
 }
 
-/* =====================
-   NAV
-===================== */
 nav {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 22px 48px;
+    padding: 20px 46px;
     position: fixed;
     top: 0;
     left: 0;
@@ -120,9 +108,6 @@ nav {
     color: var(--white);
 }
 
-/* =====================
-   SHARED BUTTONS
-===================== */
 .btn-main {
     display: inline-flex;
     align-items: center;
@@ -168,9 +153,6 @@ nav {
     border-color: var(--ember);
 }
 
-/* =====================
-   SHARED ANIMATIONS
-===================== */
 @keyframes fadeUp {
     from {
         opacity: 0;
