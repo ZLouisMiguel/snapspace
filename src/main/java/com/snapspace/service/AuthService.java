@@ -40,9 +40,10 @@ public class AuthService {
     }
 
     /**
-     * Data Access Object for user database operations.
+     * Data Access Objects for user database operations.
      */
     private final UserDAO userDAO = new UserDAO();
+    private final BoardService boardService = new BoardService();
 
     /**
      * Attempts to authenticate a user using their email and password.
@@ -96,6 +97,7 @@ public class AuthService {
         user.setPasswordHash(hashedPassword);
 
         userDAO.save(user);
+        boardService.createDefaultBoard(user);
 
         return RegisterResult.SUCCESS;
     }
