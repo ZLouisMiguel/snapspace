@@ -14,32 +14,41 @@ import jakarta.servlet.http.Part;
 
 import java.io.IOException;
 import java.nio.file.Paths;
+import java.util.Set;
 
 /**
  * Servlet responsible for handling image uploads in the SnapSpace application.
  *
  * <p>
- * This servlet only handles HTTP concerns — reading the request and redirecting.
- * All upload logic (Cloudinary, database) is delegated to {@link ImageService}.
+ * This servlet handles HTTP concerns only — reading the multipart request,
+ * validating the file, and redirecting. All upload logic (Cloudinary, database)
+ * is delegated to {@link ImageService}.
  * </p>
  *
  * <p>
- * Node.js equivalent: this is your Express route handler. It reads req, calls
- * a service, then sends a redirect. Nothing else.
+ * Node.js equivalent: your Express route handler. It reads req, validates the
+ * file, calls a service, then sends a redirect. Nothing else.
  * </p>
  */
 @WebServlet("/upload")
-@MultipartConfig(fileSizeThreshold = 1024 * 1024,
+@MultipartConfig(
+        fileSizeThreshold = 1024 * 1024,
         maxFileSize = 5 * 1024 * 1024,
         maxRequestSize = 10 * 1024 * 1024
 )
 public class UploadImageServlet extends HttpServlet {
 
     /**
-     * Service handling all image upload business logic.
-     * This replaces the direct DAO reference — the servlet no longer
-     * knows about the database or Cloudinary.
+     * MIME types accepted for upload.
+     * Anything else is rejected before it reaches Cloudinary.
      */
+    private static final Set<String> ALLOWED_TYPES = Set.of(
+            "image/jpeg",
+            "image/png",
+            "image/gif",
+            "image/webp"
+    );
+
     private final ImageService imageService = new ImageService();
 
     /**
@@ -57,15 +66,13 @@ public class UploadImageServlet extends HttpServlet {
      * Handles image upload form submission.
      *
      * <p>
-     * This method:
+     * Steps:
      * <ol>
-     *     <li>Verifies the user is authenticated via session</li>
-     *     <li>Extracts the file and original filename from the multipart request</li>
-     *     <li>Passes the raw stream, title, and user to {@link ImageService#upload}</li>
-     *     <li>Redirects to the feed on success</li>
+     *   <li>Reads the authenticated user from the session</li>
+     *   <li>Checks the file part is non-empty and has an allowed MIME type</li>
+     *   <li>Passes the stream, filename, and user to {@link ImageService#upload}</li>
+     *   <li>Redirects to the feed on success, or back to upload with an error code</li>
      * </ol>
-     * No file system access, no DAO, no Cloudinary imports — all of that lives
-     * in the service layer.
      * </p>
      *
      * @param request  HTTP multipart request containing the uploaded image
@@ -75,14 +82,30 @@ public class UploadImageServlet extends HttpServlet {
     protected void doPost(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
 
         HttpSession session = request.getSession(false);
-        User user = (User) session.getAttribute("user");
+        User user = (session != null) ? (User) session.getAttribute("user") : null;
 
+        // AuthFilter already guards this route, but defensive check keeps the
+        // method self-contained if the filter mapping ever changes.
         if (user == null) {
             response.sendRedirect(request.getContextPath() + "/login");
             return;
         }
 
         Part filePart = request.getPart("image");
+
+        // Reject empty submissions (user clicked upload without choosing a file)
+        if (filePart == null || filePart.getSize() == 0) {
+            response.sendRedirect(request.getContextPath() + "/upload?error=no_file");
+            return;
+        }
+
+        // Reject disallowed MIME types — checked server-side, not just in the browser
+        String contentType = filePart.getContentType();
+        if (contentType == null || !ALLOWED_TYPES.contains(contentType.toLowerCase())) {
+            response.sendRedirect(request.getContextPath() + "/upload?error=invalid_type");
+            return;
+        }
+
         String fileName = Paths.get(filePart.getSubmittedFileName()).getFileName().toString();
 
         imageService.upload(filePart.getInputStream(), fileName, user);
