@@ -1,6 +1,7 @@
 package com.snapspace.util;
 
 import java.util.Properties;
+
 import org.hibernate.SessionFactory;
 import org.hibernate.cfg.Configuration;
 import org.hibernate.cfg.Environment;
@@ -15,61 +16,77 @@ import com.snapspace.model.Like;
 
 /**
  * Utility class for managing the Hibernate {@link SessionFactory}.
+ *
  * <p>
- * This class provides a singleton {@link SessionFactory} instance that can be used
- * throughout the application to interact with the database using Hibernate ORM.
- * It configures Hibernate with PostgreSQL and maps the application's entity classes.
+ * Provides a singleton {@link SessionFactory} built once at class-load time
+ * using a static initializer block. This is inherently thread-safe — the JVM
+ * guarantees that static initializers run exactly once, even under concurrent
+ * access, so no synchronization is needed here.
+ * </p>
+ *
+ * <p>
+ * The previous lazy {@code if (sessionFactory == null)} pattern was a race
+ * condition: two threads could both see {@code null} simultaneously and each
+ * build their own factory, leaking connections and causing unpredictable behaviour.
+ * The static initializer eliminates that entirely.
+ * </p>
+ *
+ * <p>
+ * Node.js equivalent: a module-level singleton — the first {@code require()}
+ * runs the setup code; every subsequent {@code require()} gets the cached export.
  * </p>
  */
 public class HibernateUtil {
 
     /**
-     * Singleton instance of Hibernate SessionFactory
+     * Singleton SessionFactory — built once when this class is first loaded.
+     * Static initializers are thread-safe by the Java Language Specification (JLS §12.4).
      */
-    private static SessionFactory sessionFactory;
+    private static final SessionFactory sessionFactory;
 
-    /**
-     * Returns the singleton {@link SessionFactory} instance.
-     * <p>
-     * If the SessionFactory is not yet initialized, it will configure Hibernate,
-     * register entity classes, and build the SessionFactory.
-     * </p>
-     *
-     * @return the Hibernate {@link SessionFactory} instance
-     */
-    public static SessionFactory getSessionFactory() {
-
-        if (sessionFactory == null) {
-            // Create Hibernate Configuration object
+    static {
+        try {
             Configuration cfg = new Configuration();
 
-            // Set Hibernate properties
             Properties props = new Properties();
             props.put(Environment.DRIVER, "org.postgresql.Driver");
             props.put(Environment.URL, PropertiesUtil.get("db.url"));
-            props.put(Environment.USER,  PropertiesUtil.get("db.user"));
-            props.put(Environment.PASS,  PropertiesUtil.get("db.password"));
+            props.put(Environment.USER, PropertiesUtil.get("db.user"));
+            props.put(Environment.PASS, PropertiesUtil.get("db.password"));
             props.put(Environment.DIALECT, "org.hibernate.dialect.PostgreSQLDialect");
-            props.put(Environment.HBM2DDL_AUTO, "update"); // Auto-create/update tables
-            props.put(Environment.SHOW_SQL, true);         // Show SQL in console
+            props.put(Environment.HBM2DDL_AUTO, "update");
+
+            // Driven by config so it can be turned off without touching code.
+            // Set show_sql=true in config.properties for development, false otherwise.
+            props.put(Environment.SHOW_SQL, PropertiesUtil.get("hibernate.show_sql", "false"));
 
             cfg.setProperties(props);
 
-            // Register annotated entity classes
             cfg.addAnnotatedClass(User.class);
             cfg.addAnnotatedClass(ImagePost.class);
             cfg.addAnnotatedClass(Board.class);
             cfg.addAnnotatedClass(Comment.class);
             cfg.addAnnotatedClass(Like.class);
 
-            // Build the ServiceRegistry and SessionFactory
             ServiceRegistry sr = new StandardServiceRegistryBuilder()
                     .applySettings(cfg.getProperties())
                     .build();
 
             sessionFactory = cfg.buildSessionFactory(sr);
-        }
 
+        } catch (Exception e) {
+            // If the factory can't be built the app can't run — fail loudly at startup
+            // rather than silently producing NullPointerExceptions later.
+            throw new ExceptionInInitializerError("Failed to build Hibernate SessionFactory: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Returns the singleton {@link SessionFactory}.
+     *
+     * @return the application-wide Hibernate SessionFactory
+     */
+    public static SessionFactory getSessionFactory() {
         return sessionFactory;
     }
 }
