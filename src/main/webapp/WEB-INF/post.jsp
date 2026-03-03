@@ -75,12 +75,12 @@
                         <div class="comments-empty">No comments yet. Be the first.</div>
                     </c:when>
                     <c:otherwise>
-                        <c:forEach var="comment" items="${comments}">
-                            <div class="comment-item">
-                                <span class="comment-user">@${comment.user.username}</span>
-                                <p class="comment-text">${comment.text}</p>
-                            </div>
-                        </c:forEach>
+                      <c:forEach var="comment" items="${comments}">
+                          <div class="comment-item" data-id="${comment.id}">
+                              <span class="comment-user">@${comment.user.username}</span>
+                              <p class="comment-text">${comment.text}</p>
+                          </div>
+                      </c:forEach>
                     </c:otherwise>
                 </c:choose>
             </div>
@@ -175,8 +175,7 @@
             drawer.classList.add('open');
             info.classList.add('hidden');
             arrow.textContent = '←';
-            const list = document.getElementById('commentsList');
-            list.scrollTop = list.scrollHeight;
+            scrollCommentsToBottom();
         }
     }
 
@@ -190,6 +189,98 @@
             toggleBoardPicker();
         }
     }
+
+    function scrollCommentsToBottom() {
+        const list = document.getElementById('commentsList');
+        if (list) list.scrollTop = list.scrollHeight;
+    }
+
+    const POST_ID     = '${post.id}';
+    const CONTEXT     = '${pageContext.request.contextPath}';
+
+    const renderedIds = new Set();
+
+    document.querySelectorAll('.comment-item[data-id]').forEach(el => {
+        renderedIds.add(el.dataset.id);
+    });
+
+    function startCommentStream() {
+        const url = CONTEXT + '/comments/stream?postId=' + POST_ID;
+        const es  = new EventSource(url);
+
+        es.onmessage = function(event) {
+            const parts    = event.data.split('|');
+            if (parts.length < 3) return;
+
+            const id       = parts[0];
+            const username = parts[1];
+            const text     = parts.slice(2).join('|');
+
+            if (renderedIds.has(id)) return;
+            renderedIds.add(id);
+
+            appendComment(id, username, text);
+        };
+
+        es.onerror = function() {
+            es.close();
+            setTimeout(startCommentStream, 5000);
+        };
+    }
+
+    function appendComment(id, username, text) {
+        const list = document.getElementById('commentsList');
+        const empty = list.querySelector('.comments-empty');
+        if (empty) empty.remove();
+
+        const item = document.createElement('div');
+        item.className   = 'comment-item';
+        item.dataset.id  = id;
+        item.innerHTML   =
+            '<span class="comment-user">@' + escapeHtml(username) + '</span>' +
+            '<p class="comment-text">'     + escapeHtml(text)     + '</p>';
+
+        list.appendChild(item);
+
+        const drawer = document.getElementById('commentsDrawer');
+        if (drawer && drawer.classList.contains('open')) {
+            scrollCommentsToBottom();
+        }
+
+        const badge = document.querySelector('.comments-count');
+        if (badge) badge.textContent = parseInt(badge.textContent || '0') + 1;
+    }
+
+    function escapeHtml(str) {
+        const div = document.createElement('div');
+        div.appendChild(document.createTextNode(str));
+        return div.innerHTML;
+    }
+
+    const commentForm = document.querySelector('.comment-form');
+    if (commentForm) {
+        commentForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+
+            const input = commentForm.querySelector('input[name="text"]');
+            const text  = input.value.trim();
+            if (!text) return;
+
+            const formData = new FormData(commentForm);
+
+            fetch(commentForm.action, {
+                method: 'POST',
+                body:   new URLSearchParams(formData)
+            }).then(() => {
+                input.value = '';
+                input.focus();
+            }).catch(() => {
+                commentForm.submit();
+            });
+        });
+    }
+
+    startCommentStream();
 </script>
 
 </body>
