@@ -4,4 +4,17 @@
          xsi:schemaLocation="https://jakarta.ee/xml/ns/jakartaee https://jakarta.ee/xml/ns/jakartaee/web-app_6_0.xsd"
          version="6.0">
 
+    <session-config>
+        <session-timeout>43200</session-timeout>
+
+        <cookie-config>
+            <name>SNAPSESSIONID</name>
+            <http-only>true</http-only>
+            <secure>false</secure>
+            <max-age>2592000</max-age>
+        </cookie-config>
+
+        <tracking-mode>COOKIE</tracking-mode>
+    </session-config>
+
 </web-app>
