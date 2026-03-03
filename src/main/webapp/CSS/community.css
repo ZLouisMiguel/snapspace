@@ -1,0 +1,195 @@
+/* community.css */
+
+.community-page {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 100px 46px 60px; /* Top padding for fixed nav */
+    animation: fadeIn 0.5s ease;
+}
+
+/* --- Header Section --- */
+.community-header {
+    display: flex;
+    gap: 40px;
+    padding-bottom: 40px;
+    align-items: flex-start;
+    border-bottom: 1px solid var(--chalk);
+    margin-bottom: 30px;
+}
+
+.community-header-cover {
+    width: 160px;
+    height: 160px;
+    border-radius: 12px;
+    overflow: hidden;
+    flex-shrink: 0;
+    box-shadow: var(--shadow-md);
+    background: var(--chalk);
+}
+
+.community-header-cover img { width: 100%; height: 100%; object-fit: cover; }
+
+.community-cover-placeholder {
+    width: 100%; height: 100%;
+    display: flex; align-items: center; justify-content: center;
+    background: var(--slate); color: var(--ember);
+    font-family: var(--font-display); font-size: 72px;
+}
+
+.community-name {
+    font-family: var(--font-display);
+    font-size: 52px;
+    line-height: 1;
+    margin: 8px 0;
+    color: var(--slate);
+}
+
+.community-desc {
+    color: var(--ash);
+    max-width: 500px;
+    font-size: 15px;
+    margin-bottom: 16px;
+}
+
+.community-visibility-badge {
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    padding: 4px 10px;
+    border-radius: 4px;
+}
+.community-visibility-badge.private { background: #ffebeb; color: #d63031; }
+.community-visibility-badge.public { background: #e3fcef; color: #00b894; }
+
+/* --- Tabs --- */
+.community-tabs {
+    display: flex;
+    gap: 32px;
+    border-bottom: 1px solid var(--chalk);
+    margin-bottom: 40px;
+}
+
+.community-tab {
+    background: none; border: none;
+    padding: 16px 0;
+    cursor: pointer;
+    font-family: var(--font-body);
+    font-weight: 600; font-size: 13px;
+    letter-spacing: 1px; text-transform: uppercase;
+    color: var(--ash);
+    border-bottom: 2px solid transparent;
+    transition: var(--transition);
+}
+
+.community-tab.active {
+    color: var(--ember);
+    border-bottom-color: var(--ember);
+}
+
+.requests-badge {
+    background: var(--ember);
+    color: white;
+    font-size: 10px;
+    padding: 2px 6px;
+    border-radius: 10px;
+    margin-left: 4px;
+}
+
+/* --- Chat Interface --- */
+.community-chat {
+    display: flex; flex-direction: column;
+    height: 600px;
+    background: var(--white);
+    border-radius: 12px;
+    border: 1px solid var(--chalk);
+    box-shadow: var(--shadow-sm);
+    overflow: hidden;
+}
+
+.chat-messages {
+    flex: 1; overflow-y: auto;
+    padding: 24px;
+    display: flex; flex-direction: column; gap: 20px;
+}
+
+.chat-message { animation: fadeUp 0.3s ease; }
+
+.chat-author {
+    font-weight: 700; font-size: 12px;
+    color: var(--ember);
+    display: block; margin-bottom: 4px;
+}
+
+.chat-text {
+    background: var(--frost);
+    padding: 12px 16px;
+    border-radius: 0 12px 12px 12px;
+    font-size: 14px;
+    display: inline-block;
+    max-width: 80%;
+}
+
+.chat-input-row {
+    display: flex; padding: 20px;
+    background: var(--white);
+    border-top: 1px solid var(--chalk);
+    gap: 12px;
+}
+
+.chat-input {
+    flex: 1;
+    border: 1.5px solid var(--chalk);
+    border-radius: 6px; padding: 12px 16px;
+    font-family: var(--font-body);
+}
+
+.chat-input:focus { outline: none; border-color: var(--ember); }
+
+.chat-send-btn {
+    background: var(--slate); color: var(--frost);
+    border: none; width: 45px; height: 45px;
+    border-radius: 6px; cursor: pointer;
+    font-size: 18px; transition: var(--transition);
+}
+
+.chat-send-btn:hover { background: var(--ember); transform: scale(1.05); }
+
+/* --- Member List --- */
+.member-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 20px;
+    background: var(--white);
+    border-radius: 8px;
+    margin-bottom: 10px;
+    border: 1px solid var(--chalk);
+}
+
+.member-username { font-weight: 600; color: var(--slate); }
+
+.member-role-badge {
+    font-size: 11px; font-weight: 700;
+    padding: 3px 8px; border-radius: 4px;
+}
+.member-role-badge.admin { background: var(--slate); color: var(--white); }
+.member-role-badge.member { background: var(--chalk); color: var(--ash); }
+
+/* --- Grid Utilities --- */
+.community-posts-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 24px;
+}
+
+.community-post-card {
+    background: var(--white);
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: var(--shadow-sm);
+}
+
+.community-post-card:hover { transform: translateY(-5px); box-shadow: var(--shadow-md); }
+
+.hidden { display: none; }
