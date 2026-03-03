@@ -58,4 +58,34 @@ public class CommentDAO {
                     .list();
         }
     }
+
+    /**
+     * Retrieves comments on a post that are newer than a given comment ID.
+     *
+     * <p>
+     * Used exclusively by the SSE stream endpoint. Each poll passes the ID
+     * of the last comment it already delivered, so only genuinely new comments
+     * are returned — not the full list every 2 seconds.
+     * </p>
+     *
+     * <p>
+     * Ordering by id asc ensures comments arrive in chronological order
+     * when multiple comments are posted in quick succession between polls.
+     * </p>
+     *
+     * @param post       the post to check for new comments
+     * @param lastSeenId the ID of the most recently delivered comment (0 = none yet)
+     * @return list of new {@link Comment} entities, oldest first
+     */
+    public List<Comment> findSince(ImagePost post, Long lastSeenId) {
+        try (Session s = sf.openSession()) {
+            return s.createQuery(
+                            "from Comment c where c.image = :post and c.id > :lastId order by c.id asc",
+                            Comment.class
+                    )
+                    .setParameter("post", post)
+                    .setParameter("lastId", lastSeenId)
+                    .list();
+        }
+    }
 }
