@@ -38,11 +38,23 @@ public class ImagePostDAO {
     /**
      * Retrieves all image posts from the database.
      *
+     * <p>
+     * Uses {@code join fetch} to eagerly load the {@code owner} association
+     * to avoid LazyInitializationException when rendering JSPs that access
+     * {@code post.owner.username} after the session is closed.
+     * </p>
+     *
      * @return list of all image posts
      */
     public List<ImagePost> findAll() {
         try (Session s = sf.openSession()) {
-            return s.createQuery("from ImagePost", ImagePost.class).list();
+            return s.createQuery(
+                            "select distinct p from ImagePost p " +
+                                    "join fetch p.owner " +
+                                    "order by p.id desc",
+                            ImagePost.class
+                    )
+                    .list();
         }
     }
 
@@ -77,7 +89,10 @@ public class ImagePostDAO {
     public List<ImagePost> findRecent(Long excludeId, int limit) {
         try (Session s = sf.openSession()) {
             return s.createQuery(
-                            "from ImagePost where id != :excludeId order by id desc",
+                            "select distinct p from ImagePost p " +
+                                    "join fetch p.owner " +
+                                    "where p.id != :excludeId " +
+                                    "order by p.id desc",
                             ImagePost.class
                     )
                     .setParameter("excludeId", excludeId)

@@ -5,6 +5,7 @@
 <head>
     <title>SnapSpace — Create Account</title>
     <link rel="stylesheet" href="${pageContext.request.contextPath}/CSS/styles.css">
+    <script src="https://www.google.com/recaptcha/api.js" async defer></script>
 </head>
 <body>
 
@@ -50,6 +51,12 @@
                 </div>
             </c:if>
 
+            <c:if test="${param.error == 'captcha'}">
+                <div class="auth-error">
+                    Please complete the reCAPTCHA challenge.
+                </div>
+            </c:if>
+
             <form class="auth-form" action="${pageContext.request.contextPath}/register" method="post">
 
                 <div class="form-group">
@@ -65,6 +72,10 @@
                 <div class="form-group">
                     <label for="password">Password</label>
                     <input type="password" id="password" name="password" placeholder="••••••••" required />
+                </div>
+
+                <div class="form-group">
+                    <div class="g-recaptcha" data-sitekey="${recaptchaSiteKey}"></div>
                 </div>
 
                 <button type="submit" class="btn-main auth-submit">Create account →</button>

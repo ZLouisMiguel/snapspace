@@ -2,7 +2,9 @@ package com.snapspace.controller;
 
 import com.snapspace.model.User;
 import com.snapspace.service.AuthService;
+import com.snapspace.util.EmailUtil;
 
+import jakarta.mail.MessagingException;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.annotation.WebServlet;
 import jakarta.servlet.http.HttpServlet;
@@ -11,6 +13,8 @@ import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
 
 import java.io.IOException;
+import java.security.SecureRandom;
+import java.time.Instant;
 
 /**
  * Servlet responsible for user authentication (login).
@@ -54,13 +58,30 @@ public class LoginServlet extends HttpServlet {
 
         User user = authService.login(email, password);
 
-        if (user != null) {
-            HttpSession session = request.getSession(true);
-            session.setAttribute("user", user);
-
-            response.sendRedirect(request.getContextPath() + "/feed");
-        } else {
+        if (user == null) {
             response.sendRedirect(request.getContextPath() + "/login?error=true");
+            return;
         }
+
+        String otp = String.format("%06d", new SecureRandom().nextInt(1_000_000));
+
+        HttpSession session = request.getSession(true);
+        session.removeAttribute("user");
+        session.setAttribute("pendingUser", user);
+        session.setAttribute("loginOtp", otp);
+        session.setAttribute("loginOtpCreatedAt", Instant.now());
+
+        try {
+            EmailUtil.sendOtp(user.getEmail(), otp);
+        } catch (MessagingException e) {
+            e.printStackTrace();
+            session.removeAttribute("pendingUser");
+            session.removeAttribute("loginOtp");
+            session.removeAttribute("loginOtpCreatedAt");
+            response.sendRedirect(request.getContextPath() + "/login?error=mail");
+            return;
+        }
+
+        response.sendRedirect(request.getContextPath() + "/verify-otp");
     }
 }

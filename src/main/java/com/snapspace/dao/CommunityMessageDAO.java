@@ -23,11 +23,21 @@ public class CommunityMessageDAO {
         }
     }
 
-    /** Returns the most recent messages for a community, oldest first for display. */
+    /**
+     * Returns the most recent messages for a community, oldest first for display.
+     *
+     * <p>
+     * Uses {@code join fetch} to eagerly load the {@code author} association
+     * so JSPs can safely access {@code msg.author.username} outside the
+     * originating Hibernate session.
+     * </p>
+     */
     public List<CommunityMessage> findRecent(Community community, int limit) {
         try (Session s = sf.openSession()) {
             List<CommunityMessage> results = s.createQuery(
-                            "from CommunityMessage where community = :c order by id desc",
+                            "select m from CommunityMessage m " +
+                                    "join fetch m.author " +
+                                    "where m.community = :c order by m.id desc",
                             CommunityMessage.class
                     )
                     .setParameter("c", community)
@@ -46,7 +56,9 @@ public class CommunityMessageDAO {
     public List<CommunityMessage> findSince(Community community, Long lastSeenId) {
         try (Session s = sf.openSession()) {
             return s.createQuery(
-                            "from CommunityMessage where community = :c and id > :lastId order by id asc",
+                            "select m from CommunityMessage m " +
+                                    "join fetch m.author " +
+                                    "where m.community = :c and m.id > :lastId order by m.id asc",
                             CommunityMessage.class
                     )
                     .setParameter("c", community)

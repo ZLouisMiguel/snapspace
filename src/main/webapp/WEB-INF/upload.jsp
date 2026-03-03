@@ -8,12 +8,7 @@
 </head>
 <body>
 
-<nav>
-    <a class="nav-logo" href="${pageContext.request.contextPath}/">SNAP<span>SPACE</span></a>
-    <div class="nav-links">
-        <a href="${pageContext.request.contextPath}/feed">Feed</a>
-    </div>
-</nav>
+<jsp:include page="/WEB-INF/fragments/navbar.jsp" />
 
 <main class="upload-page">
 

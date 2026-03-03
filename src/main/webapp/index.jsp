@@ -8,15 +8,7 @@
 </head>
 <body>
 
-<nav>
-    <a class="nav-logo" href="#">SNAP<span>SPACE</span></a>
-    <div class="nav-links">
-        <a href="#">Explore</a>
-        <a href="#">Community</a>
-        <a href="${pageContext.request.contextPath}/login">Login</a>
-        <a href="${pageContext.request.contextPath}/register" class="nav-cta">Get Started</a>
-    </div>
-</nav>
+<jsp:include page="/WEB-INF/fragments/navbar.jsp" />
 
 <section class="hero">
 

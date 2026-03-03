@@ -41,8 +41,9 @@ public class CommentDAO {
      * Retrieves all comments for a given image post, ordered oldest first.
      *
      * <p>
-     * Node.js equivalent:
-     * {@code Comment.find({ image: postId }).sort({ createdAt: 1 })}
+     * Uses {@code join fetch} to eagerly load the {@code user} association
+     * so JSPs can safely access {@code comment.user.username} after the
+     * Hibernate session is closed.
      * </p>
      *
      * @param post the image post to fetch comments for
@@ -51,7 +52,9 @@ public class CommentDAO {
     public List<Comment> findByPost(ImagePost post) {
         try (Session s = sf.openSession()) {
             return s.createQuery(
-                            "from Comment where image = :post order by id asc",
+                            "select c from Comment c " +
+                                    "join fetch c.user " +
+                                    "where c.image = :post order by c.id asc",
                             Comment.class
                     )
                     .setParameter("post", post)
@@ -80,7 +83,9 @@ public class CommentDAO {
     public List<Comment> findSince(ImagePost post, Long lastSeenId) {
         try (Session s = sf.openSession()) {
             return s.createQuery(
-                            "from Comment c where c.image = :post and c.id > :lastId order by c.id asc",
+                            "select c from Comment c " +
+                                    "join fetch c.user " +
+                                    "where c.image = :post and c.id > :lastId order by c.id asc",
                             Comment.class
                     )
                     .setParameter("post", post)

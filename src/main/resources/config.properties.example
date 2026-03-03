@@ -1,0 +1,25 @@
+# Cloudinary credentials
+cloud_name=YOUR_CLOUD_NAME
+api_key=YOUR_API_KEY
+api_secret=YOUR_API_SECRET
+
+# Database credentials
+db.url=jdbc:postgresql://localhost:5432/snapspace
+db.user=postgres
+db.password=CHANGEME
+
+# Hibernate
+hibernate.show_sql=true
+
+# Mailing (Jakarta Mail SMTP)
+mail.smtp.host=smtp.gmail.com
+mail.smtp.port=587
+mail.smtp.user=YOUR_SMTP_USER
+mail.smtp.password=YOUR_SMTP_APP_PASSWORD
+mail.smtp.auth=true
+mail.smtp.starttls.enable=true
+
+# Google reCAPTCHA v2
+recaptcha.site_key=YOUR_RECAPTCHA_SITE_KEY
+recaptcha.secret_key=YOUR_RECAPTCHA_SECRET_KEY
+
