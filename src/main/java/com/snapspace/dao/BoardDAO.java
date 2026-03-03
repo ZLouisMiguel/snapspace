@@ -141,7 +141,7 @@ public class BoardDAO {
     public void addPost(Long boardId, Long postId) {
         try (Session s = sf.openSession()) {
             s.beginTransaction();
-            Board board   = s.get(Board.class, boardId);
+            Board board = s.get(Board.class, boardId);
             ImagePost post = s.get(ImagePost.class, postId);
             if (board != null && post != null && !board.getPosts().contains(post)) {
                 board.getPosts().add(post);
@@ -160,7 +160,7 @@ public class BoardDAO {
     public void removePost(Long boardId, Long postId) {
         try (Session s = sf.openSession()) {
             s.beginTransaction();
-            Board board    = s.get(Board.class, boardId);
+            Board board = s.get(Board.class, boardId);
             ImagePost post = s.get(ImagePost.class, postId);
             if (board != null && post != null) {
                 board.getPosts().removeIf(p -> p.getId().equals(post.getId()));
@@ -184,6 +184,29 @@ public class BoardDAO {
                 s.remove(board);
             }
             s.getTransaction().commit();
+        }
+    }
+
+    /**
+     * Finds the default Sparks board for a given user.
+     *
+     * <p>
+     * Used by the Sparks sync logic to locate the board without
+     * relying on its name, which could theoretically be renamed later.
+     * Querying by {@code defaultBoard = true} is more robust.
+     * </p>
+     *
+     * @param owner the user whose Sparks board to find
+     * @return the default {@link Board}, or null if somehow missing
+     */
+    public Board findDefaultBoard(User owner) {
+        try (Session s = sf.openSession()) {
+            return s.createQuery(
+                            "from Board where owner = :owner and defaultBoard = true",
+                            Board.class
+                    )
+                    .setParameter("owner", owner)
+                    .uniqueResult();
         }
     }
 }

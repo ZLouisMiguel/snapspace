@@ -117,4 +117,36 @@ public class BoardService {
         if (board.isDefaultBoard()) return; // Sparks is permanent
         boardDAO.delete(boardId);
     }
+
+    /**
+     * Syncs a post's presence in the user's Sparks board to match their like status.
+     *
+     * <p>
+     * Called automatically by {@link com.snapspace.service.PostService#toggleLike}
+     * after every like/unlike action. The contract is simple:
+     * <ul>
+     *   <li>If {@code liked} is true  → ensure the post is in Sparks</li>
+     *   <li>If {@code liked} is false → ensure the post is not in Sparks</li>
+     * </ul>
+     * This uses {@code containsPost} to avoid duplicating posts that are
+     * already on the board, and is a no-op if the Sparks board is missing.
+     * </p>
+     *
+     * @param user  the user who liked or unliked
+     * @param post  the post that was liked or unliked
+     * @param liked true if the user just liked, false if they just unliked
+     */
+    public void syncSparks(User user, ImagePost post, boolean liked) {
+        Board sparks = boardDAO.findDefaultBoard(user);
+        if (sparks == null) return;
+
+        if (liked) {
+            // Only add if not already saved — containsPost guards against duplicates
+            if (!boardDAO.containsPost(sparks, post)) {
+                boardDAO.addPost(sparks.getId(), post.getId());
+            }
+        } else {
+            boardDAO.removePost(sparks.getId(), post.getId());
+        }
+    }
 }
