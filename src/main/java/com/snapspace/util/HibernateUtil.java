@@ -2,17 +2,12 @@ package com.snapspace.util;
 
 import java.util.Properties;
 
+import com.snapspace.model.*;
 import org.hibernate.SessionFactory;
 import org.hibernate.cfg.Configuration;
 import org.hibernate.cfg.Environment;
 import org.hibernate.service.ServiceRegistry;
 import org.hibernate.boot.registry.StandardServiceRegistryBuilder;
-
-import com.snapspace.model.User;
-import com.snapspace.model.ImagePost;
-import com.snapspace.model.Board;
-import com.snapspace.model.Comment;
-import com.snapspace.model.Like;
 
 /**
  * Utility class for managing the Hibernate {@link SessionFactory}.
@@ -67,6 +62,10 @@ public class HibernateUtil {
             cfg.addAnnotatedClass(Board.class);
             cfg.addAnnotatedClass(Comment.class);
             cfg.addAnnotatedClass(Like.class);
+            cfg.addAnnotatedClass(Community.class);
+            cfg.addAnnotatedClass(CommunityMember.class);
+            cfg.addAnnotatedClass(CommunityPost.class);
+            cfg.addAnnotatedClass(CommunityMessage.class);
 
             ServiceRegistry sr = new StandardServiceRegistryBuilder()
                     .applySettings(cfg.getProperties())
