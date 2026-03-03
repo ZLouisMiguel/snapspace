@@ -24,11 +24,18 @@ public class CommunityPostDAO {
         }
     }
 
-    /** Returns all posts shared into a community, newest first. */
+    /**
+     * Returns all posts shared into a community, newest first.
+     * Uses 'join fetch' to prevent LazyInitializationException in JSPs.
+     */
     public List<CommunityPost> findByCommunity(Community community) {
         try (Session s = sf.openSession()) {
             return s.createQuery(
-                            "from CommunityPost where community = :c order by sharedAt desc",
+                            "select cp from CommunityPost cp " +
+                                    "join fetch cp.post p " +
+                                    "join fetch cp.sharedBy u " +
+                                    "where cp.community = :c " +
+                                    "order by cp.sharedAt desc",
                             CommunityPost.class
                     )
                     .setParameter("c", community)
@@ -36,7 +43,9 @@ public class CommunityPostDAO {
         }
     }
 
-    /** Checks whether a post has already been shared into this community. */
+    /**
+     * Checks whether a post has already been shared into this community.
+     */
     public boolean exists(Community community, ImagePost post) {
         try (Session s = sf.openSession()) {
             Long count = s.createQuery(

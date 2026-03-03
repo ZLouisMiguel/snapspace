@@ -83,4 +83,20 @@ public class CloudinaryUtil {
     public static Map upload(byte[] bytes, String folder) throws IOException {
         return Holder.INSTANCE.uploader().upload(bytes, ObjectUtils.asMap("folder", folder));
     }
+
+    /**
+     * Uploads an image source to Cloudinary.
+     *
+     * @param source The source to upload (InputStream, byte[], or File)
+     * @param folder the Cloudinary folder to organize uploads
+     * @return the Cloudinary response map
+     * @throws IOException if the upload fails
+     */
+    public static Map upload(Object source, String folder) throws IOException {
+        // The SDK uploader handles InputStream, byte[], etc., automatically
+        return Holder.INSTANCE.uploader().upload(source, ObjectUtils.asMap(
+                "folder", folder,
+                "resource_type", "auto" // Good practice to handle different image types
+        ));
+    }
 }

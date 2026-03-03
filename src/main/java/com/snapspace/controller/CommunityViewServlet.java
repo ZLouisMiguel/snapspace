@@ -1,39 +1,26 @@
 package com.snapspace.controller;
 
-import com.snapspace.model.Community;
-import com.snapspace.model.CommunityMember;
-import com.snapspace.model.User;
+import com.snapspace.model.*;
 import com.snapspace.service.CommunityService;
+import com.snapspace.util.CloudinaryUtil;
 
 import jakarta.servlet.ServletException;
+import jakarta.servlet.annotation.MultipartConfig;
 import jakarta.servlet.annotation.WebServlet;
-import jakarta.servlet.http.HttpServlet;
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletResponse;
-import jakarta.servlet.http.HttpSession;
+import jakarta.servlet.http.*;
 
 import java.io.IOException;
+import java.io.InputStream;
+import java.util.Map;
 
-/**
- * Handles the single community view and all community actions.
- *
- * GET  /community?id=X               — view community
- * POST /community?id=X action=join   — join or request to join
- * POST /community?id=X action=leave  — leave community
- * POST /community?id=X action=post   — share a post into community
- * POST /community?id=X action=message — send a chat message
- * POST /community?id=X action=approve&targetUserId=Y — admin: approve pending
- * POST /community?id=X action=kick&targetUserId=Y    — admin: remove member
- * POST /community?id=X action=promote&targetUserId=Y — admin: promote to admin
- */
 @WebServlet("/community")
+@MultipartConfig(maxFileSize = 5 * 1024 * 1024) // 5MB limit
 public class CommunityViewServlet extends HttpServlet {
 
     private final CommunityService communityService = new CommunityService();
 
     @Override
-    protected void doGet(HttpServletRequest request, HttpServletResponse response)
-            throws ServletException, IOException {
+    protected void doGet(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
 
         Community community = resolveCommunity(request, response);
         if (community == null) return;
@@ -42,23 +29,21 @@ public class CommunityViewServlet extends HttpServlet {
         User user = (session != null) ? (User) session.getAttribute("user") : null;
 
         CommunityMember membership = communityService.getMembership(community, user);
-        boolean isActiveMember     = communityService.isActiveMember(community, user);
-        boolean isAdmin            = communityService.isAdmin(community, user);
+        boolean isActiveMember = communityService.isActiveMember(community, user);
+        boolean isAdmin = communityService.isAdmin(community, user);
 
-        request.setAttribute("community",    community);
-        request.setAttribute("membership",   membership);
+        request.setAttribute("community", community);
+        request.setAttribute("membership", membership);
         request.setAttribute("isActiveMember", isActiveMember);
-        request.setAttribute("isAdmin",      isAdmin);
-        request.setAttribute("memberCount",  communityService.getMemberCount(community));
+        request.setAttribute("isAdmin", isAdmin);
+        request.setAttribute("memberCount", communityService.getMemberCount(community));
 
-        // Only load content for active members (or public communities for non-members preview)
         if (isActiveMember || community.getVisibility() == Community.Visibility.PUBLIC) {
-            request.setAttribute("communityPosts",   communityService.getPosts(community));
-            request.setAttribute("recentMessages",   communityService.getRecentMessages(community));
-            request.setAttribute("members",          communityService.getActiveMembers(community));
+            request.setAttribute("communityPosts", communityService.getPosts(community));
+            request.setAttribute("recentMessages", communityService.getRecentMessages(community));
+            request.setAttribute("members", communityService.getActiveMembers(community));
         }
 
-        // Pending requests only visible to admins
         if (isAdmin) {
             request.setAttribute("pendingRequests", communityService.getPendingRequests(community));
         }
@@ -67,8 +52,7 @@ public class CommunityViewServlet extends HttpServlet {
     }
 
     @Override
-    protected void doPost(HttpServletRequest request, HttpServletResponse response)
-            throws ServletException, IOException {
+    protected void doPost(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
 
         HttpSession session = request.getSession(false);
         User user = (session != null) ? (User) session.getAttribute("user") : null;
@@ -85,7 +69,6 @@ public class CommunityViewServlet extends HttpServlet {
         String redirectBase = request.getContextPath() + "/community?id=" + community.getId();
 
         switch (action == null ? "" : action) {
-
             case "join":
                 communityService.join(community, user);
                 break;
@@ -100,10 +83,13 @@ public class CommunityViewServlet extends HttpServlet {
                 if (postId != null) communityService.sharePost(community, postId, user);
                 break;
 
+            case "upload_direct":
+                handleDirectUpload(request, community, user);
+                break;
+
             case "message":
                 String text = request.getParameter("text");
                 communityService.sendMessage(community, text, user);
-                // For the fetch()-based chat submit, return 204 instead of a redirect
                 if ("fetch".equals(request.getParameter("via"))) {
                     response.setStatus(HttpServletResponse.SC_NO_CONTENT);
                     return;
@@ -129,12 +115,35 @@ public class CommunityViewServlet extends HttpServlet {
         response.sendRedirect(redirectBase);
     }
 
-    /**
-     * Resolves and validates the community from the request's id parameter.
-     * Sends a redirect and returns null if invalid.
-     */
-    private Community resolveCommunity(HttpServletRequest request,
-                                       HttpServletResponse response) throws IOException {
+    private void handleDirectUpload(HttpServletRequest request, Community community, User user) throws ServletException, IOException {
+
+        Part filePart = request.getPart("image");
+        String title = request.getParameter("title");
+
+        if (filePart != null && filePart.getSize() > 0) {
+            // Validate it's an image before hitting Cloudinary
+            String contentType = filePart.getContentType();
+            if (contentType == null || !contentType.startsWith("image/")) {
+                // You might want to set an error message in session here
+                return;
+            }
+
+            try (InputStream is = filePart.getInputStream()) {
+                // Now calling CloudinaryUtil with InputStream
+                Map result = CloudinaryUtil.upload(is, "communities/" + community.getId());
+
+                String url = (String) result.get("secure_url"); // Use secure_url for HTTPS
+                String pId = (String) result.get("public_id");
+
+                communityService.uploadPost(community, user, title, url, pId);
+            } catch (Exception e) {
+                e.printStackTrace();
+                // Log the error properly or notify the user
+            }
+        }
+    }
+
+    private Community resolveCommunity(HttpServletRequest request, HttpServletResponse response) throws IOException {
         Long id = parseLong(request.getParameter("id"));
         if (id == null) {
             response.sendRedirect(request.getContextPath() + "/communities");
@@ -150,7 +159,10 @@ public class CommunityViewServlet extends HttpServlet {
 
     private Long parseLong(String param) {
         if (param == null || param.isBlank()) return null;
-        try { return Long.parseLong(param); }
-        catch (NumberFormatException e) { return null; }
+        try {
+            return Long.parseLong(param);
+        } catch (NumberFormatException e) {
+            return null;
+        }
     }
 }
