@@ -176,7 +176,6 @@
 .member-role-badge.admin { background: var(--slate); color: var(--white); }
 .member-role-badge.member { background: var(--chalk); color: var(--ash); }
 
-/* --- Grid Utilities --- */
 .community-posts-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
@@ -192,4 +191,55 @@
 
 .community-post-card:hover { transform: translateY(-5px); box-shadow: var(--shadow-md); }
 
-.hidden { display: none; }
+.community-post-actions-bar {
+    background: var(--white);
+    padding: 24px;
+    border-radius: 12px;
+    margin-bottom: 32px;
+    border: 1px solid var(--chalk);
+}
+
+.action-toggles {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 16px;
+}
+
+.community-upload-form {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    align-items: center;
+}
+
+.community-upload-form input[type="text"] {
+    flex: 1;
+    min-width: 200px;
+    padding: 10px 14px;
+    border: 1px solid var(--chalk);
+    border-radius: 6px;
+}
+
+.file-input-wrapper {
+    position: relative;
+}
+
+.file-input-wrapper input[type="file"] {
+    position: absolute;
+    opacity: 0;
+    width: 100%;
+    height: 100%;
+    cursor: pointer;
+}
+
+#fileLabel {
+    display: inline-block;
+    padding: 10px 16px;
+    background: var(--frost);
+    border: 1px dashed var(--ash);
+    border-radius: 6px;
+    font-size: 13px;
+    color: var(--slate);
+}
+
+.hidden { display: none !important; }

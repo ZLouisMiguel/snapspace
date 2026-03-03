@@ -101,12 +101,27 @@
     <!-- ── Posts tab ───────────────────────────────────────────────────── -->
     <div class="community-tab-panel" id="tab-posts">
         <c:if test="${isActiveMember}">
-            <div class="share-post-bar">
-                <form action="${pageContext.request.contextPath}/community?id=${community.id}" method="post"
-                      class="share-post-form">
+            <div class="community-post-actions-bar">
+                <div class="action-toggles">
+                    <button class="btn-sm btn-ghost active" onclick="togglePostMode('upload')">Upload New</button>
+                    <button class="btn-sm btn-ghost" onclick="togglePostMode('share')">Share Existing</button>
+                </div>
+
+                <form id="mode-upload" action="${pageContext.request.contextPath}/community?id=${community.id}"
+                      method="post" enctype="multipart/form-data" class="community-upload-form">
+                    <input type="hidden" name="action" value="upload_direct" />
+                    <input type="text" name="title" placeholder="Give your post a title..." required />
+                    <div class="file-input-wrapper">
+                        <input type="file" name="image" accept="image/*" required id="commUpload" onchange="updateFileName(this)"/>
+                        <label for="commUpload" id="fileLabel">Choose Image</label>
+                    </div>
+                    <button type="submit" class="btn-main">Post to Community →</button>
+                </form>
+
+                <form id="mode-share" action="${pageContext.request.contextPath}/community?id=${community.id}"
+                      method="post" class="share-post-form hidden">
                     <input type="hidden" name="action" value="post" />
-                    <input type="number" name="postId" placeholder="Paste a post ID to share..."
-                           class="share-post-input" min="1" />
+                    <input type="number" name="postId" placeholder="Paste Post ID (e.g. 102)..." class="share-post-input" />
                     <button type="submit" class="btn-main">Share →</button>
                 </form>
             </div>
@@ -339,6 +354,33 @@
 
     startChatStream();
     scrollChatToBottom();
+
+    function togglePostMode(mode) {
+        const uploadForm = document.getElementById('mode-upload');
+        const shareForm = document.getElementById('mode-share');
+        const buttons = document.querySelectorAll('.action-toggles button');
+
+        if (mode === 'upload') {
+            uploadForm.classList.remove('hidden');
+            shareForm.classList.add('hidden');
+            buttons[0].classList.add('active');
+            buttons[1].classList.remove('active');
+        } else {
+            uploadForm.classList.add('hidden');
+            shareForm.classList.remove('hidden');
+            buttons[0].classList.remove('active');
+            buttons[1].classList.add('active');
+        }
+    }
+
+    function updateFileName(input) {
+        const label = document.getElementById('fileLabel');
+        if (input.files && input.files[0]) {
+            label.innerText = input.files[0].name;
+            label.style.borderColor = 'var(--ember)';
+            label.style.color = 'var(--ember)';
+        }
+    }
 </script>
 
 </body>
