@@ -4,4 +4,20 @@
          xsi:schemaLocation="https://jakarta.ee/xml/ns/jakartaee https://jakarta.ee/xml/ns/jakartaee/web-app_6_0.xsd"
          version="6.0">
 
+    <!--
+        CommentStreamServlet must be declared explicitly here in addition to
+        its @WebServlet annotation because asyncSupported needs to be confirmed
+        at the deployment descriptor level for reliable behaviour across
+        all Tomcat 11 configurations.
+    -->
+    <servlet>
+        <servlet-name>CommentStreamServlet</servlet-name>
+        <servlet-class>com.snapspace.controller.CommentStreamServlet</servlet-class>
+        <async-supported>true</async-supported>
+    </servlet>
+    <servlet-mapping>
+        <servlet-name>CommentStreamServlet</servlet-name>
+        <url-pattern>/comments/stream</url-pattern>
+    </servlet-mapping>
+
 </web-app>
