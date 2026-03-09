@@ -6,6 +6,16 @@ import com.snapspace.model.CommunityMember.Role;
 
 import java.util.List;
 
+/**
+ * Business logic for all community operations.
+ *
+ * <p>
+ * Each method loads what it needs within its own DAO call (which opens/closes
+ * its own Hibernate session). No entity is passed between sessions — DAOs now
+ * accept bare IDs for queries, which eliminates the detached-entity bug that
+ * caused messages and posts to silently fail.
+ * </p>
+ */
 public class CommunityService {
 
     private final CommunityDAO communityDAO = new CommunityDAO();
@@ -40,12 +50,18 @@ public class CommunityService {
         return m != null && m.getRole() == Role.ADMIN;
     }
 
+    /**
+     * Returns all CommunityPost link-rows for this community, newest first.
+     */
     public List<CommunityPost> getPosts(Community community) {
-        return communityPostDAO.findByCommunity(community);
+        return communityPostDAO.findByCommunity(community.getId());
     }
 
+    /**
+     * Returns the 50 most recent chat messages, oldest first.
+     */
     public List<CommunityMessage> getRecentMessages(Community community) {
-        return messageDAO.findRecent(community, 50);
+        return messageDAO.findRecent(community.getId(), 50);
     }
 
     public List<CommunityMember> getActiveMembers(Community community) {
@@ -71,6 +87,7 @@ public class CommunityService {
         community.setCreator(creator);
         communityDAO.save(community);
 
+        // Creator is automatically an ADMIN member
         CommunityMember membership = new CommunityMember();
         membership.setCommunity(community);
         membership.setUser(creator);
@@ -80,16 +97,18 @@ public class CommunityService {
         return community;
     }
 
-    // ── Direct Upload ───────────────────────────────────────────────────────
+    // ── Direct Upload (new ImagePost + share to community in one step) ──────
 
     /**
-     * Creates a brand new post and shares it to the community immediately.
+     * Creates a brand-new {@link ImagePost} and immediately links it to the
+     * community via a {@link CommunityPost} row.
      */
-    public void uploadPost(Community community, User user, String title, String url, String publicId) {
+    public void uploadPost(Community community, User user,
+                           String title, String url, String publicId) {
         if (!isActiveMember(community, user)) return;
 
         ImagePost post = new ImagePost();
-        post.setTitle(title);
+        post.setTitle(title == null || title.isBlank() ? "Untitled" : title.trim());
         post.setImageUrl(url);
         post.setCloudinaryPublicId(publicId);
         post.setOwner(user);
@@ -102,27 +121,30 @@ public class CommunityService {
         communityPostDAO.save(cp);
     }
 
-    // ── Actions ─────────────────────────────────────────────────────────────
+    // ── Membership actions ───────────────────────────────────────────────────
 
     public void join(Community community, User user) {
         if (memberDAO.find(community, user) != null) return;
         CommunityMember membership = new CommunityMember();
         membership.setCommunity(community);
         membership.setUser(user);
-        membership.setRole(community.getVisibility() == Community.Visibility.PUBLIC ? Role.MEMBER : Role.PENDING);
+        membership.setRole(
+                community.getVisibility() == Community.Visibility.PUBLIC
+                        ? Role.MEMBER : Role.PENDING
+        );
         memberDAO.save(membership);
     }
 
     public void leave(Community community, User user) {
         CommunityMember m = memberDAO.find(community, user);
+        // Prevent the creator from leaving (they'd orphan the community)
         if (m == null || community.getCreator().getId().equals(user.getId())) return;
         memberDAO.delete(m);
     }
 
     public void approveMember(Community community, Long targetUserId, User admin) {
         if (!isAdmin(community, admin)) return;
-        List<CommunityMember> pending = memberDAO.findByRole(community, Role.PENDING);
-        pending.stream()
+        memberDAO.findByRole(community, Role.PENDING).stream()
                 .filter(m -> m.getUser().getId().equals(targetUserId))
                 .findFirst()
                 .ifPresent(m -> memberDAO.updateRole(m, Role.MEMBER));
@@ -131,7 +153,8 @@ public class CommunityService {
     public void kickMember(Community community, Long targetUserId, User admin) {
         if (!isAdmin(community, admin)) return;
         memberDAO.findActiveMembers(community).stream()
-                .filter(m -> m.getUser().getId().equals(targetUserId) && m.getRole() != Role.ADMIN)
+                .filter(m -> m.getUser().getId().equals(targetUserId)
+                        && m.getRole() != Role.ADMIN)
                 .findFirst()
                 .ifPresent(memberDAO::delete);
     }
@@ -139,35 +162,40 @@ public class CommunityService {
     public void promoteMember(Community community, Long targetUserId, User admin) {
         if (!isAdmin(community, admin)) return;
         memberDAO.findActiveMembers(community).stream()
-                .filter(m -> m.getUser().getId().equals(targetUserId) && m.getRole() == Role.MEMBER)
+                .filter(m -> m.getUser().getId().equals(targetUserId)
+                        && m.getRole() == Role.MEMBER)
                 .findFirst()
                 .ifPresent(m -> memberDAO.updateRole(m, Role.ADMIN));
     }
 
+    /**
+     * Shares an existing {@link ImagePost} into the community.
+     * No-ops if the post is already shared (duplicate guard).
+     */
     public void sharePost(Community community, Long postId, User user) {
-        if (!isActiveMember(community, user)) {
-            System.out.println("LOG: Share failed - User " + user.getUsername() + " not member of " + community.getName());
-            return;
-        }
-
+        if (!isActiveMember(community, user)) return;
         ImagePost post = postDAO.findById(postId);
-        if (post == null) {
-            System.out.println("LOG: Share failed - Post ID " + postId + " not found.");
-            return;
-        }
-
-        if (communityPostDAO.exists(community, post)) return;
+        if (post == null) return;
+        if (communityPostDAO.exists(community.getId(), postId)) return;
 
         CommunityPost cp = new CommunityPost();
         cp.setCommunity(community);
         cp.setPost(post);
         cp.setSharedBy(user);
         communityPostDAO.save(cp);
-        System.out.println("LOG: Post " + postId + " shared to " + community.getName());
     }
 
+    /**
+     * Persists a new chat message and returns the saved entity (with its
+     * generated ID) so the SSE stream picks it up on the very next poll.
+     *
+     * @return the saved {@link CommunityMessage}, or {@code null} if the user
+     * isn't a member or the text is blank
+     */
     public CommunityMessage sendMessage(Community community, String text, User user) {
-        if (!isActiveMember(community, user) || text == null || text.isBlank()) return null;
+        if (!isActiveMember(community, user)) return null;
+        if (text == null || text.isBlank()) return null;
+
         CommunityMessage msg = new CommunityMessage();
         msg.setCommunity(community);
         msg.setAuthor(user);
