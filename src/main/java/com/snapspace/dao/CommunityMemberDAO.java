@@ -12,6 +12,12 @@ import java.util.List;
 
 /**
  * Data Access Object for {@link CommunityMember} entities.
+ *
+ * <p>
+ * Membership lookups that only need scalar checks use bare IDs to stay
+ * session-safe. Methods that receive full entity objects (save, delete,
+ * updateRole) re-attach via {@code s.get()} before mutation.
+ * </p>
  */
 public class CommunityMemberDAO {
 
@@ -26,45 +32,53 @@ public class CommunityMemberDAO {
     }
 
     /**
-     * Finds the membership record for a user in a community, or null if none exists.
-     * Used to check role, pending status, or whether user is a member at all.
+     * Finds the membership record for a user in a community, or {@code null}.
+     * Uses IDs so the lookup works regardless of whether the entities are
+     * attached to the current session.
      */
     public CommunityMember find(Community community, User user) {
         try (Session s = sf.openSession()) {
             return s.createQuery(
-                            "from CommunityMember where community = :c and user = :u",
+                            "from CommunityMember where community.id = :cid and user.id = :uid",
                             CommunityMember.class
                     )
-                    .setParameter("c", community)
-                    .setParameter("u", user)
+                    .setParameter("cid", community.getId())
+                    .setParameter("uid", user.getId())
                     .uniqueResult();
         }
     }
 
     /**
      * Returns all members with a given role in a community.
-     * Used to list members, admins, or pending requests.
      */
     public List<CommunityMember> findByRole(Community community, Role role) {
         try (Session s = sf.openSession()) {
             return s.createQuery(
-                            "from CommunityMember where community = :c and role = :role order by joinedAt asc",
+                            "select m from CommunityMember m " +
+                                    "join fetch m.user " +
+                                    "where m.community.id = :cid and m.role = :role " +
+                                    "order by m.joinedAt asc",
                             CommunityMember.class
                     )
-                    .setParameter("c", community)
+                    .setParameter("cid", community.getId())
                     .setParameter("role", role)
                     .list();
         }
     }
 
-    /** Returns all non-pending members (ADMIN + MEMBER). */
+    /**
+     * Returns all non-pending members (ADMIN + MEMBER).
+     */
     public List<CommunityMember> findActiveMembers(Community community) {
         try (Session s = sf.openSession()) {
             return s.createQuery(
-                            "from CommunityMember where community = :c and role != 'PENDING' order by role asc, joinedAt asc",
+                            "select m from CommunityMember m " +
+                                    "join fetch m.user " +
+                                    "where m.community.id = :cid and m.role != 'PENDING' " +
+                                    "order by m.role asc, m.joinedAt asc",
                             CommunityMember.class
                     )
-                    .setParameter("c", community)
+                    .setParameter("cid", community.getId())
                     .list();
         }
     }
@@ -87,14 +101,17 @@ public class CommunityMemberDAO {
         }
     }
 
-    /** Counts non-pending members for the community card display. */
+    /**
+     * Counts non-pending members — used on community cards.
+     */
     public long countMembers(Community community) {
         try (Session s = sf.openSession()) {
             return s.createQuery(
-                            "select count(m) from CommunityMember m where m.community = :c and m.role != 'PENDING'",
+                            "select count(m) from CommunityMember m " +
+                                    "where m.community.id = :cid and m.role != 'PENDING'",
                             Long.class
                     )
-                    .setParameter("c", community)
+                    .setParameter("cid", community.getId())
                     .uniqueResult();
         }
     }
