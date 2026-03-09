@@ -21,18 +21,21 @@ import java.util.List;
  * SSE endpoint for live community chat.
  *
  * <p>
- * Identical in structure to {@link CommentStreamServlet} but scoped
- * to a community's message stream rather than a post's comments.
- * Only active members of the community can connect.
+ * The critical fix: the polling loop now passes the community's {@code Long} ID
+ * to {@code messageDAO.findSince()} rather than a detached {@code Community}
+ * entity. The original code loaded the entity once, then reused it as a Hibernate
+ * query parameter inside a brand-new session on every 2-second tick — Hibernate
+ * compares entities by session identity, so the WHERE clause silently matched
+ * nothing, meaning no messages were ever streamed.
  * </p>
- *
- * GET /community/chat?id=X
+ * <p>
+ * GET /community/chat?id={communityId}
  */
 @WebServlet(urlPatterns = "/community/chat", asyncSupported = true)
 public class CommunityChatStreamServlet extends HttpServlet {
 
-    private final CommunityService    communityService = new CommunityService();
-    private final CommunityMessageDAO messageDAO       = new CommunityMessageDAO();
+    private final CommunityService communityService = new CommunityService();
+    private final CommunityMessageDAO messageDAO = new CommunityMessageDAO();
 
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response)
@@ -53,7 +56,7 @@ public class CommunityChatStreamServlet extends HttpServlet {
             return;
         }
 
-        // Private communities require active membership to stream chat
+        // Private communities require active membership to stream
         if (community.getVisibility() == Community.Visibility.PRIVATE
                 && !communityService.isActiveMember(community, user)) {
             response.sendError(HttpServletResponse.SC_FORBIDDEN);
@@ -68,17 +71,21 @@ public class CommunityChatStreamServlet extends HttpServlet {
         AsyncContext async = request.startAsync();
         async.setTimeout(0);
 
+        // Store the ID as a final local — safe to capture in the lambda/thread
+        final long cid = communityId;
+
         Thread poller = new Thread(() -> {
             PrintWriter writer = null;
             try {
                 writer = response.getWriter();
-                long lastSeenId = 0;
+                long lastSeenId = 0L;
 
                 while (isClientConnected(writer)) {
-                    List<CommunityMessage> newMessages = messageDAO.findSince(community, lastSeenId);
+                    // KEY FIX: pass the bare Long ID, not a detached entity
+                    List<CommunityMessage> newMessages = messageDAO.findSince(cid, lastSeenId);
 
                     for (CommunityMessage msg : newMessages) {
-                        // Format: id|username|text  — same pipe-delimited SSE as comments
+                        // Format: id|username|text  (pipe-delimited, same as CommentStreamServlet)
                         String payload = msg.getId()
                                 + "|" + escapeSSE(msg.getAuthor().getUsername())
                                 + "|" + escapeSSE(msg.getText());
@@ -92,7 +99,7 @@ public class CommunityChatStreamServlet extends HttpServlet {
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
             } catch (Exception e) {
-                // Client disconnected — normal
+                // Client disconnected — normal termination
             } finally {
                 async.complete();
             }
@@ -114,7 +121,10 @@ public class CommunityChatStreamServlet extends HttpServlet {
 
     private Long parseLong(String param) {
         if (param == null || param.isBlank()) return null;
-        try { return Long.parseLong(param); }
-        catch (NumberFormatException e) { return null; }
+        try {
+            return Long.parseLong(param);
+        } catch (NumberFormatException e) {
+            return null;
+        }
     }
 }
