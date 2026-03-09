@@ -10,7 +10,6 @@ import jakarta.servlet.annotation.WebServlet;
 import jakarta.servlet.http.*;
 
 import java.io.IOException;
-import java.io.InputStream;
 import java.util.Map;
 
 /**
@@ -18,24 +17,28 @@ import java.util.Map;
  *
  * <p>
  * GET  /community?id={id}  — renders the community view<br>
- * POST /community?id={id}  — all community actions (join, leave, message, upload, share, admin ops)
+ * POST /community?id={id}  — all community actions
  * </p>
  *
- * <h3>Message action fix</h3>
+ * <h3>Upload fix</h3>
  * <p>
- * When {@code action=message} arrives with {@code via=fetch}, the servlet
- * returns HTTP 204 (No Content).  The client-side fetch in community.jsp
- * posts to this endpoint without a full-page reload; the SSE stream then
- * picks up the new message within 2 seconds and appends it to the chat UI.
- * The previous code was correct for this path — the real bug was in
- * {@link CommunityChatStreamServlet} passing a detached entity to the DAO.
+ * The previous {@code handleDirectUpload} passed the raw {@link java.io.InputStream}
+ * from {@link Part#getInputStream()} directly to
+ * {@link CloudinaryUtil#upload(Object, String)}. The Cloudinary {@code http44}
+ * transport only accepts {@code byte[]}, {@code File}, or a URL {@code String}
+ * — passing a {@code sun.nio.ch.ChannelInputStream} caused:<br>
+ * {@code IOException: Unrecognized file parameter sun.nio.ch.ChannelInputStream@...}<br>
+ * Fix: call {@code inputStream.readAllBytes()} and pass {@code byte[]} to
+ * {@link CloudinaryUtil#upload(byte[], String)}, exactly as
+ * {@link com.snapspace.service.ImageService} does for normal uploads.
  * </p>
  *
- * <h3>Post sharing fix</h3>
+ * <h3>Message fix (in CommunityMessageDAO)</h3>
  * <p>
- * {@code action=post} now validates membership and the post's existence
- * before delegating to the service, and sets a flash message in the session
- * so the JSP can show feedback.
+ * The chat submit path here is correct — this servlet reads the text parameter
+ * and calls {@code communityService.sendMessage()}. The actual save failure was
+ * in {@code CommunityMessageDAO.save()} using {@code s.persist()} with detached
+ * associations; that is fixed in the DAO layer.
  * </p>
  */
 @WebServlet("/community")
@@ -66,7 +69,6 @@ public class CommunityViewServlet extends HttpServlet {
         request.setAttribute("isAdmin", isAdmin);
         request.setAttribute("memberCount", communityService.getMemberCount(community));
 
-        // Content visible to members AND to any visitor of a public community
         if (isActiveMember || community.getVisibility() == Community.Visibility.PUBLIC) {
             request.setAttribute("communityPosts", communityService.getPosts(community));
             request.setAttribute("recentMessages", communityService.getRecentMessages(community));
@@ -77,7 +79,7 @@ public class CommunityViewServlet extends HttpServlet {
             request.setAttribute("pendingRequests", communityService.getPendingRequests(community));
         }
 
-        // Pass any flash message from a redirect and then clear it
+        // Transfer flash message from session to request scope and clear it
         if (session != null) {
             String flash = (String) session.getAttribute("flash");
             if (flash != null) {
@@ -121,7 +123,6 @@ public class CommunityViewServlet extends HttpServlet {
                 return;
 
             case "post": {
-                // Share an existing ImagePost into the community
                 Long postId = parseLong(request.getParameter("postId"));
                 if (postId == null) {
                     setFlash(session, "error:Please enter a valid Post ID.");
@@ -137,16 +138,14 @@ public class CommunityViewServlet extends HttpServlet {
                 break;
 
             case "message": {
-                // Chat message — submitted via fetch (no page reload)
                 String text = request.getParameter("text");
-                CommunityMessage msg = communityService.sendMessage(community, text, user);
+                communityService.sendMessage(community, text, user);
+                // When submitted via fetch, return 204 so the promise resolves cleanly.
+                // The SSE stream picks up the new message within 2 seconds automatically.
                 if ("fetch".equals(request.getParameter("via"))) {
-                    // Return 204 so the fetch promise resolves cleanly.
-                    // The SSE stream will pick up the new message automatically.
                     response.setStatus(HttpServletResponse.SC_NO_CONTENT);
                     return;
                 }
-                // Fallback: if JS is disabled the page will just reload
                 break;
             }
 
@@ -174,6 +173,23 @@ public class CommunityViewServlet extends HttpServlet {
 
     // ── Helpers ─────────────────────────────────────────────────────────────
 
+    /**
+     * Handles the "Upload Image" form in the community posts tab.
+     *
+     * <h3>The fix</h3>
+     * <p>
+     * Previously this method called:
+     * <pre>
+     *   CloudinaryUtil.upload(filePart.getInputStream(), folder)
+     * </pre>
+     * The Cloudinary {@code http44} HTTP strategy only accepts {@code byte[]},
+     * {@code File}, or a URL string. Passing a raw {@code InputStream} (which
+     * becomes a {@code sun.nio.ch.ChannelInputStream} at the NIO layer) threw:<br>
+     * {@code IOException: Unrecognized file parameter sun.nio.ch.ChannelInputStream}<br>
+     * The fix reads the stream to a {@code byte[]} first — identical to how
+     * {@link com.snapspace.service.ImageService#upload} handles normal post uploads.
+     * </p>
+     */
     private void handleDirectUpload(HttpServletRequest request,
                                     Community community,
                                     User user,
@@ -199,12 +215,20 @@ public class CommunityViewServlet extends HttpServlet {
             return;
         }
 
-        try (InputStream is = filePart.getInputStream()) {
-            Map<?, ?> result = CloudinaryUtil.upload(is, "communities/" + community.getId());
+        try {
+            // KEY FIX: read the stream to bytes before passing to Cloudinary.
+            // The Cloudinary http44 transport accepts byte[] but NOT a raw InputStream.
+            // CloudinaryUtil.upload(byte[], folder) is the correct overload to call,
+            // exactly as ImageService.upload() does for normal post uploads.
+            byte[] imageBytes = filePart.getInputStream().readAllBytes();
+            Map<?, ?> result = CloudinaryUtil.upload(imageBytes, "communities/" + community.getId());
+
             String url = (String) result.get("secure_url");
             String publicId = (String) result.get("public_id");
+
             communityService.uploadPost(community, user, title, url, publicId);
             setFlash(session, "success:Image posted to the community!");
+
         } catch (Exception e) {
             e.printStackTrace();
             setFlash(session, "error:Upload failed. Please try again.");
