@@ -12,37 +12,8 @@ import jakarta.servlet.http.*;
 import java.io.IOException;
 import java.util.Map;
 
-/**
- * Handles all interactions with a single community page.
- *
- * <p>
- * GET  /community?id={id}  — renders the community view<br>
- * POST /community?id={id}  — all community actions
- * </p>
- *
- * <h3>Upload fix</h3>
- * <p>
- * The previous {@code handleDirectUpload} passed the raw {@link java.io.InputStream}
- * from {@link Part#getInputStream()} directly to
- * {@link CloudinaryUtil#upload(Object, String)}. The Cloudinary {@code http44}
- * transport only accepts {@code byte[]}, {@code File}, or a URL {@code String}
- * — passing a {@code sun.nio.ch.ChannelInputStream} caused:<br>
- * {@code IOException: Unrecognized file parameter sun.nio.ch.ChannelInputStream@...}<br>
- * Fix: call {@code inputStream.readAllBytes()} and pass {@code byte[]} to
- * {@link CloudinaryUtil#upload(byte[], String)}, exactly as
- * {@link com.snapspace.service.ImageService} does for normal uploads.
- * </p>
- *
- * <h3>Message fix (in CommunityMessageDAO)</h3>
- * <p>
- * The chat submit path here is correct — this servlet reads the text parameter
- * and calls {@code communityService.sendMessage()}. The actual save failure was
- * in {@code CommunityMessageDAO.save()} using {@code s.persist()} with detached
- * associations; that is fixed in the DAO layer.
- * </p>
- */
 @WebServlet("/community")
-@MultipartConfig(maxFileSize = 5 * 1024 * 1024) // 5 MB
+@MultipartConfig(maxFileSize = 5 * 1024 * 1024)
 public class CommunityViewServlet extends HttpServlet {
 
     private final CommunityService communityService = new CommunityService();
@@ -53,8 +24,17 @@ public class CommunityViewServlet extends HttpServlet {
     protected void doGet(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
 
-        Community community = resolveCommunity(request, response);
-        if (community == null) return;
+        Long id = parseLong(request.getParameter("id"));
+        if (id == null) {
+            response.sendRedirect(request.getContextPath() + "/communities");
+            return;
+        }
+
+        Community community = communityService.getCommunity(id);
+        if (community == null) {
+            response.sendRedirect(request.getContextPath() + "/communities");
+            return;
+        }
 
         HttpSession session = request.getSession(false);
         User user = (session != null) ? (User) session.getAttribute("user") : null;
@@ -68,18 +48,18 @@ public class CommunityViewServlet extends HttpServlet {
         request.setAttribute("isActiveMember", isActiveMember);
         request.setAttribute("isAdmin", isAdmin);
         request.setAttribute("memberCount", communityService.getMemberCount(community));
+        request.setAttribute("recentMessages", communityService.getRecentMessages(community));
+        request.setAttribute("members", communityService.getActiveMembers(community));
 
         if (isActiveMember || community.getVisibility() == Community.Visibility.PUBLIC) {
             request.setAttribute("communityPosts", communityService.getPosts(community));
-            request.setAttribute("recentMessages", communityService.getRecentMessages(community));
-            request.setAttribute("members", communityService.getActiveMembers(community));
         }
 
         if (isAdmin) {
             request.setAttribute("pendingRequests", communityService.getPendingRequests(community));
         }
 
-        // Transfer flash message from session to request scope and clear it
+        // Flash message from redirect
         if (session != null) {
             String flash = (String) session.getAttribute("flash");
             if (flash != null) {
@@ -105,14 +85,40 @@ public class CommunityViewServlet extends HttpServlet {
             return;
         }
 
-        Community community = resolveCommunity(request, response);
-        if (community == null) return;
+        Long id = parseLong(request.getParameter("id"));
+        if (id == null) {
+            response.sendRedirect(request.getContextPath() + "/communities");
+            return;
+        }
+
+        Community community = communityService.getCommunity(id);
+        if (community == null) {
+            response.sendRedirect(request.getContextPath() + "/communities");
+            return;
+        }
 
         String action = request.getParameter("action");
         String redirectBase = request.getContextPath() + "/community?id=" + community.getId();
 
         switch (action == null ? "" : action) {
 
+            // ── Chat message (fetch-only, no redirect) ───────────────────
+            case "message": {
+                String text = request.getParameter("text");
+                System.out.println("[Chat] POST id=" + id + " user=" + user.getId() + " text=" + text);
+
+                CommunityMessage saved = communityService.sendMessage(community, text, user);
+                System.out.println("[Chat] saved=" + (saved == null ? "NULL" : saved.getId()));
+
+                if (saved != null) {
+                    response.setStatus(HttpServletResponse.SC_NO_CONTENT); // 204
+                } else {
+                    response.sendError(HttpServletResponse.SC_BAD_REQUEST, "Not a member or blank text");
+                }
+                return; // never falls through to redirect
+            }
+
+            // ── Membership ───────────────────────────────────────────────
             case "join":
                 communityService.join(community, user);
                 break;
@@ -122,6 +128,7 @@ public class CommunityViewServlet extends HttpServlet {
                 response.sendRedirect(request.getContextPath() + "/communities");
                 return;
 
+            // ── Posts ────────────────────────────────────────────────────
             case "post": {
                 Long postId = parseLong(request.getParameter("postId"));
                 if (postId == null) {
@@ -137,35 +144,27 @@ public class CommunityViewServlet extends HttpServlet {
                 handleDirectUpload(request, community, user, session);
                 break;
 
-            case "message": {
-                String text = request.getParameter("text");
-                communityService.sendMessage(community, text, user);
-                // When submitted via fetch, return 204 so the promise resolves cleanly.
-                // The SSE stream picks up the new message within 2 seconds automatically.
-                if ("fetch".equals(request.getParameter("via"))) {
-                    response.setStatus(HttpServletResponse.SC_NO_CONTENT);
-                    return;
-                }
-                break;
-            }
-
+            // ── Admin actions ────────────────────────────────────────────
             case "approve": {
-                Long id = parseLong(request.getParameter("targetUserId"));
-                if (id != null) communityService.approveMember(community, id, user);
+                Long targetId = parseLong(request.getParameter("targetUserId"));
+                if (targetId != null) communityService.approveMember(community, targetId, user);
                 break;
             }
 
             case "kick": {
-                Long id = parseLong(request.getParameter("targetUserId"));
-                if (id != null) communityService.kickMember(community, id, user);
+                Long targetId = parseLong(request.getParameter("targetUserId"));
+                if (targetId != null) communityService.kickMember(community, targetId, user);
                 break;
             }
 
             case "promote": {
-                Long id = parseLong(request.getParameter("targetUserId"));
-                if (id != null) communityService.promoteMember(community, id, user);
+                Long targetId = parseLong(request.getParameter("targetUserId"));
+                if (targetId != null) communityService.promoteMember(community, targetId, user);
                 break;
             }
+
+            default:
+                setFlash(session, "error:Unknown action.");
         }
 
         response.sendRedirect(redirectBase);
@@ -173,23 +172,6 @@ public class CommunityViewServlet extends HttpServlet {
 
     // ── Helpers ─────────────────────────────────────────────────────────────
 
-    /**
-     * Handles the "Upload Image" form in the community posts tab.
-     *
-     * <h3>The fix</h3>
-     * <p>
-     * Previously this method called:
-     * <pre>
-     *   CloudinaryUtil.upload(filePart.getInputStream(), folder)
-     * </pre>
-     * The Cloudinary {@code http44} HTTP strategy only accepts {@code byte[]},
-     * {@code File}, or a URL string. Passing a raw {@code InputStream} (which
-     * becomes a {@code sun.nio.ch.ChannelInputStream} at the NIO layer) threw:<br>
-     * {@code IOException: Unrecognized file parameter sun.nio.ch.ChannelInputStream}<br>
-     * The fix reads the stream to a {@code byte[]} first — identical to how
-     * {@link com.snapspace.service.ImageService#upload} handles normal post uploads.
-     * </p>
-     */
     private void handleDirectUpload(HttpServletRequest request,
                                     Community community,
                                     User user,
@@ -216,49 +198,26 @@ public class CommunityViewServlet extends HttpServlet {
         }
 
         try {
-            // KEY FIX: read the stream to bytes before passing to Cloudinary.
-            // The Cloudinary http44 transport accepts byte[] but NOT a raw InputStream.
-            // CloudinaryUtil.upload(byte[], folder) is the correct overload to call,
-            // exactly as ImageService.upload() does for normal post uploads.
-            byte[] imageBytes = filePart.getInputStream().readAllBytes();
-            Map<?, ?> result = CloudinaryUtil.upload(imageBytes, "communities/" + community.getId());
-
+            byte[] bytes = filePart.getInputStream().readAllBytes();
+            Map<?, ?> result = CloudinaryUtil.upload(bytes, "communities/" + community.getId());
             String url = (String) result.get("secure_url");
             String publicId = (String) result.get("public_id");
-
             communityService.uploadPost(community, user, title, url, publicId);
             setFlash(session, "success:Image posted to the community!");
-
         } catch (Exception e) {
             e.printStackTrace();
             setFlash(session, "error:Upload failed. Please try again.");
         }
     }
 
-    private Community resolveCommunity(HttpServletRequest request,
-                                       HttpServletResponse response)
-            throws IOException {
-        Long id = parseLong(request.getParameter("id"));
-        if (id == null) {
-            response.sendRedirect(request.getContextPath() + "/communities");
-            return null;
-        }
-        Community c = communityService.getCommunity(id);
-        if (c == null) {
-            response.sendRedirect(request.getContextPath() + "/communities");
-            return null;
-        }
-        return c;
-    }
-
     private void setFlash(HttpSession session, String message) {
         if (session != null) session.setAttribute("flash", message);
     }
 
-    private Long parseLong(String param) {
-        if (param == null || param.isBlank()) return null;
+    private Long parseLong(String s) {
+        if (s == null || s.isBlank()) return null;
         try {
-            return Long.parseLong(param.trim());
+            return Long.parseLong(s.trim());
         } catch (NumberFormatException e) {
             return null;
         }
