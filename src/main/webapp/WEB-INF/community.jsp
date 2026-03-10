@@ -16,8 +16,8 @@
 
     <!-- Flash notification banner -->
     <c:if test="${not empty flash}">
-        <c:set var="flashType"  value="${fn:startsWith(flash, 'success') ? 'success' : 'error'}" />
-        <c:set var="flashText"  value="${fn:substring(flash, 8, fn:length(flash))}" />
+        <c:set var="flashType" value="${fn:startsWith(flash, 'success') ? 'success' : 'error'}" />
+        <c:set var="flashText" value="${fn:substring(flash, 8, fn:length(flash))}" />
         <div class="flash-banner flash-${flashType}" id="flashBanner">
             ${flashText}
             <button class="flash-close" onclick="this.parentElement.remove()">×</button>
@@ -71,7 +71,6 @@
                         <span class="membership-badge ${membership.role == 'ADMIN' ? 'badge-admin' : 'badge-member'}">
                             ${membership.role == 'ADMIN' ? '★ Admin' : '✓ Member'}
                         </span>
-                        <%-- Only show Leave if user is not the founding creator --%>
                         <c:if test="${membership.role != 'ADMIN' || community.creator.id != sessionScope.user.id}">
                             <form action="${pageContext.request.contextPath}/community?id=${community.id}"
                                   method="post" style="display:inline">
@@ -125,7 +124,6 @@
                     </button>
                 </div>
 
-                <%-- Upload new image directly to community --%>
                 <form id="mode-upload"
                       action="${pageContext.request.contextPath}/community?id=${community.id}"
                       method="post" enctype="multipart/form-data"
@@ -143,7 +141,6 @@
                     <button type="submit" class="btn-main">Post to Community →</button>
                 </form>
 
-                <%-- Share an existing post by its numeric ID --%>
                 <form id="mode-share"
                       action="${pageContext.request.contextPath}/community?id=${community.id}"
                       method="post"
@@ -196,7 +193,7 @@
                 <span class="chat-live-indicator" id="chatStatus">● Live</span>
             </div>
 
-            <div class="chat-messages" id="chatMessages">
+            <div class="chat-messages" id="chatBox">
                 <c:choose>
                     <c:when test="${empty recentMessages}">
                         <div class="chat-empty" id="chatEmpty">
@@ -205,8 +202,8 @@
                     </c:when>
                     <c:otherwise>
                         <c:forEach var="msg" items="${recentMessages}">
-                            <div class="chat-message" data-id="${msg.id}">
-                                <span class="chat-author">@${msg.author.username}</span>
+                            <div class="chat-message msg" data-id="${msg.id}">
+                                <span class="chat-author">@${fn:escapeXml(msg.author.username)}</span>
                                 <p class="chat-text">${fn:escapeXml(msg.text)}</p>
                             </div>
                         </c:forEach>
@@ -215,19 +212,14 @@
             </div>
 
             <c:if test="${isActiveMember}">
-                <form class="chat-input-form"
-                      action="${pageContext.request.contextPath}/community?id=${community.id}"
-                      method="post">
-                    <input type="hidden" name="action" value="message" />
-                    <input type="hidden" name="via" value="fetch" />
-                    <div class="chat-input-row">
-                        <input type="text" name="text" id="chatInput"
-                               placeholder="Say something…"
-                               autocomplete="off" class="chat-input"
-                               maxlength="1000" />
-                        <button type="submit" class="chat-send-btn" title="Send">↑</button>
-                    </div>
-                </form>
+                <div class="chat-input-row">
+                    <input type="text" id="chatInput"
+                           placeholder="Say something…"
+                           autocomplete="off" class="chat-input"
+                           maxlength="1000" />
+                    <button id="sendBtn" class="chat-send-btn" title="Send">↑</button>
+                </div>
+                <div id="status" class="chat-status"></div>
             </c:if>
             <c:if test="${!isActiveMember}">
                 <div class="chat-join-prompt">
@@ -341,7 +333,7 @@
     // ── Constants injected from server ────────────────────────────────────
     const COMMUNITY_ID = '${community.id}';
     const CONTEXT      = '${pageContext.request.contextPath}';
-    const IS_MEMBER    = ${isActiveMember};
+    const POST_URL     = CONTEXT + '/community?id=' + COMMUNITY_ID;
 
     // ── Flash auto-dismiss ────────────────────────────────────────────────
     const flashBanner = document.getElementById('flashBanner');
@@ -355,25 +347,24 @@
         btn.classList.add('active');
         if (name === 'chat') {
             scrollChatToBottom();
-            document.getElementById('chatInput') && document.getElementById('chatInput').focus();
+            const ci = document.getElementById('chatInput');
+            if (ci) ci.focus();
         }
     }
 
     function scrollChatToBottom() {
-        const msgs = document.getElementById('chatMessages');
-        if (msgs) msgs.scrollTop = msgs.scrollHeight;
+        const box = document.getElementById('chatBox');
+        if (box) box.scrollTop = box.scrollHeight;
     }
 
-    // ── Live chat via SSE ─────────────────────────────────────────────────
-    const renderedMsgIds = new Set();
-    document.querySelectorAll('.chat-message[data-id]').forEach(el => {
-        renderedMsgIds.add(el.dataset.id);
-    });
+    // ── SSE — live message stream ─────────────────────────────────────────
+    const renderedIds = new Set();
+    document.querySelectorAll('.msg[data-id]').forEach(el => renderedIds.add(el.dataset.id));
 
     let sseRetryDelay = 2000;
 
-    function startChatStream() {
-        const es = new EventSource(CONTEXT + '/community/chat?id=' + COMMUNITY_ID);
+    function startStream() {
+        const es       = new EventSource(CONTEXT + '/community/chat?id=' + COMMUNITY_ID);
         const statusEl = document.getElementById('chatStatus');
 
         es.onopen = () => {
@@ -386,34 +377,77 @@
             if (parts.length < 3) return;
             const id       = parts[0];
             const username = parts[1];
-            const text     = parts.slice(2).join('|'); // text may contain pipes
-            if (renderedMsgIds.has(id)) return;
-            renderedMsgIds.add(id);
+            const text     = parts.slice(2).join('|');
+            if (renderedIds.has(id)) return;
+            renderedIds.add(id);
             appendMessage(id, username, text);
         };
 
         es.onerror = function() {
             es.close();
             if (statusEl) { statusEl.textContent = '○ Reconnecting…'; statusEl.className = 'chat-live-indicator disconnected'; }
-            setTimeout(startChatStream, sseRetryDelay);
-            sseRetryDelay = Math.min(sseRetryDelay * 2, 30000); // exponential back-off, max 30s
+            setTimeout(startStream, sseRetryDelay);
+            sseRetryDelay = Math.min(sseRetryDelay * 2, 30000);
         };
     }
 
+    // ── Chat send ─────────────────────────────────────────────────────────
+    const sendBtn   = document.getElementById('sendBtn');
+    const chatInput = document.getElementById('chatInput');
+    const statusDiv = document.getElementById('status');
+
+    if (sendBtn) {
+        sendBtn.addEventListener('click', sendMessage);
+    }
+    if (chatInput) {
+        chatInput.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
+        });
+    }
+
+    function sendMessage() {
+        if (!chatInput) return;
+        const text = chatInput.value.trim();
+        if (!text) return;
+
+        sendBtn.disabled = true;
+
+        // Plain string body — safe, no FormData, no file-input contamination
+        const body = 'action=message&text=' + encodeURIComponent(text);
+
+        fetch(POST_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: body
+        })
+        .then(res => {
+            if (res.status === 204) {
+                chatInput.value = '';
+                chatInput.focus();
+                // SSE delivers the message back — renderedIds deduplicates it
+            } else {
+                res.text().then(t => { if (statusDiv) statusDiv.textContent = 'Error ' + res.status + ': ' + t; });
+            }
+        })
+        .catch(err => { if (statusDiv) statusDiv.textContent = 'Network error: ' + err; })
+        .finally(() => { sendBtn.disabled = false; });
+    }
+
+    // ── Append a new message bubble ───────────────────────────────────────
     function appendMessage(id, username, text) {
-        const container = document.getElementById('chatMessages');
-        const empty     = document.getElementById('chatEmpty');
+        const empty = document.getElementById('chatEmpty');
         if (empty) empty.remove();
 
-        const msg = document.createElement('div');
-        msg.className  = 'chat-message';
-        msg.dataset.id = id;
-        msg.innerHTML  =
+        const box = document.getElementById('chatBox');
+        const div = document.createElement('div');
+        div.className  = 'chat-message msg';
+        div.dataset.id = id;
+        div.innerHTML  =
             '<span class="chat-author">@' + escapeHtml(username) + '</span>' +
             '<p class="chat-text">'        + escapeHtml(text)     + '</p>';
-        container.appendChild(msg);
+        box.appendChild(div);
 
-        // Auto-scroll only when the chat panel is visible
+        // Auto-scroll only when chat tab is visible
         const chatPanel = document.getElementById('tab-chat');
         if (chatPanel && !chatPanel.classList.contains('hidden')) {
             scrollChatToBottom();
@@ -426,49 +460,13 @@
         return d.innerHTML;
     }
 
-    // ── Chat form — submit via fetch (no page reload) ─────────────────────
-    const chatForm = document.querySelector('.chat-input-form');
-    if (chatForm) {
-        chatForm.addEventListener('submit', function(e) {
-            e.preventDefault();
-            const input = chatForm.querySelector('.chat-input');
-            const text  = input.value.trim();
-            if (!text) return;
-
-            const sendBtn = chatForm.querySelector('.chat-send-btn');
-            sendBtn.disabled = true;
-
-            fetch(chatForm.action, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                body: new URLSearchParams(new FormData(chatForm))
-            })
-            .then(res => {
-                if (res.ok || res.status === 204) {
-                    input.value = '';
-                    input.focus();
-                }
-            })
-            .catch(() => chatForm.submit())   // graceful fallback if fetch fails
-            .finally(() => { sendBtn.disabled = false; });
-        });
-
-        // Send on Enter, Shift+Enter for newline
-        document.getElementById('chatInput') &&
-        document.getElementById('chatInput').addEventListener('keydown', function(e) {
-            if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault();
-                chatForm.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
-            }
-        });
-    }
-
     // ── Post mode toggle ──────────────────────────────────────────────────
     function togglePostMode(mode) {
-        const uploadForm  = document.getElementById('mode-upload');
-        const shareForm   = document.getElementById('mode-share');
-        const btnUpload   = document.getElementById('toggleUpload');
-        const btnShare    = document.getElementById('toggleShare');
+        const uploadForm = document.getElementById('mode-upload');
+        const shareForm  = document.getElementById('mode-share');
+        const btnUpload  = document.getElementById('toggleUpload');
+        const btnShare   = document.getElementById('toggleShare');
+        if (!uploadForm || !shareForm) return;
 
         if (mode === 'upload') {
             uploadForm.classList.remove('hidden');
@@ -480,22 +478,22 @@
             shareForm.classList.remove('hidden');
             btnUpload.classList.remove('active');
             btnShare.classList.add('active');
-            shareForm.querySelector('.share-post-input') &&
-            shareForm.querySelector('.share-post-input').focus();
+            const si = shareForm.querySelector('.share-post-input');
+            if (si) si.focus();
         }
     }
 
     function updateFileName(input) {
         const label = document.getElementById('fileLabel');
-        if (input.files && input.files[0]) {
-            label.textContent = '✓ ' + input.files[0].name;
+        if (label && input.files && input.files[0]) {
+            label.textContent       = '✓ ' + input.files[0].name;
             label.style.borderColor = 'var(--ember)';
             label.style.color       = 'var(--ember)';
         }
     }
 
     // ── Init ──────────────────────────────────────────────────────────────
-    startChatStream();
+    startStream();
     scrollChatToBottom();
 </script>
 
